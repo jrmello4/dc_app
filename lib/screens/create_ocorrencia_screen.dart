@@ -30,6 +30,8 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
   // Variáveis para localização
   String? _currentLocation;
   bool _isGettingLocation = false;
+  final _areaController = TextEditingController();
+  final _locationController = TextEditingController();
 
   late Future<OcorrenciaCreationData> _creationDataFuture;
 
@@ -75,6 +77,7 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
       if (locationData != null) {
         setState(() {
           _currentLocation = locationData['address'];
+          _locationController.text = locationData['address'];
         });
         
         _logger.i('Localização obtida: ${locationData['address']}');
@@ -158,6 +161,8 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
   void dispose() {
     _assuntoController.dispose();
     _descricaoController.dispose();
+    _areaController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -348,18 +353,30 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16),
+        
+        // Campo de Área/Região
+        _buildTextField(
+          controller: _areaController,
+          labelText: 'Área/Região (ex: Centro, Zona Sul, Bairro X)',
+          prefixIcon: Icons.map_outlined,
+          validator: (v) => v == null || v.trim().isEmpty ? 'Informe a área/região.' : null,
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Campo de Localização Específica
         Row(
           children: [
             Expanded(
               child: TextFormField(
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Localização Atual',
-                  hintText: _currentLocation ?? 'Toque no botão para capturar localização',
-                  prefixIcon: const Icon(Icons.location_on_outlined),
-                  border: const OutlineInputBorder(),
+                controller: _locationController,
+                decoration: const InputDecoration(
+                  labelText: 'Localização Específica',
+                  hintText: 'Digite o endereço ou toque em Capturar',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                  border: OutlineInputBorder(),
                 ),
-                controller: TextEditingController(text: _currentLocation ?? ''),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Informe a localização específica.' : null,
               ),
             ),
             const SizedBox(width: 8),
@@ -379,6 +396,7 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
             ),
           ],
         ),
+        
         if (_currentLocation != null) ...[
           const SizedBox(height: 8),
           Container(

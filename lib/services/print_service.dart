@@ -1,6 +1,7 @@
 // lib/services/print_service.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -12,6 +13,26 @@ import 'package:intl/intl.dart';
 
 class PrintService {
   static final _logger = Logger();
+
+  /// Carrega uma imagem de uma URL
+  static Future<pw.ImageProvider?> _loadImageFromUrl(String imageUrl) async {
+    try {
+      final uri = Uri.parse(imageUrl);
+      if (uri.scheme == 'http' || uri.scheme == 'https') {
+        return pw.NetworkImage(imageUrl);
+      } else {
+        // Para URLs locais ou caminhos de arquivo
+        final file = File(imageUrl);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          return pw.MemoryImage(bytes);
+        }
+      }
+    } catch (e) {
+      _logger.w('Erro ao carregar imagem: $imageUrl', error: e);
+    }
+    return null;
+  }
 
   /// Gera PDF da ocorrência
   static Future<Uint8List> generateOcorrenciaPDF(Ocorrencia ocorrencia) async {
@@ -61,7 +82,7 @@ class PrintService {
                     ],
                   ),
                 ),
-                
+
                 pw.SizedBox(height: 20),
 
                 // Informações da ocorrência
@@ -73,7 +94,7 @@ class PrintService {
                     color: PdfColors.orange,
                   ),
                 ),
-                
+
                 pw.SizedBox(height: 10),
 
                 // Tabela de informações
@@ -105,7 +126,7 @@ class PrintService {
                     color: PdfColors.orange,
                   ),
                 ),
-                
+
                 pw.SizedBox(height: 10),
 
                 pw.Container(
@@ -136,7 +157,40 @@ class PrintService {
                   
                   pw.SizedBox(height: 10),
 
-                  pw.Bullet(text: '${ocorrencia.todasAnexoUrls.length} anexo(s) disponível(is)'),
+                  pw.Text('${ocorrencia.todasAnexoUrls.length} anexo(s) disponível(is)'),
+                  
+                  pw.SizedBox(height: 10),
+
+                  // Lista de imagens
+                  ...await Future.wait(ocorrencia.todasAnexoUrls.map((imageUrl) async {
+                    final image = await _loadImageFromUrl(imageUrl);
+                    if (image != null) {
+                      return pw.Container(
+                        margin: const pw.EdgeInsets.only(bottom: 10),
+                        child: pw.Column(
+                          children: [
+                            pw.Text(
+                              'Imagem: ${imageUrl.split('/').last}',
+                              style: const pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
+                            ),
+                            pw.SizedBox(height: 5),
+                            pw.Container(
+                              constraints: const pw.BoxConstraints(maxHeight: 200),
+                              child: pw.Image(image, fit: pw.BoxFit.contain),
+                            ),
+                          ],
+                        ),
+                      );
+                    } else {
+                      return pw.Container(
+                        margin: const pw.EdgeInsets.only(bottom: 10),
+                        child: pw.Text(
+                          'Erro ao carregar: ${imageUrl.split('/').last}',
+                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.red),
+                        ),
+                      );
+                    }
+                  })),
                 ],
 
                 pw.SizedBox(height: 30),
@@ -205,22 +259,22 @@ class PrintService {
   static Future<void> printOcorrencia(Ocorrencia ocorrencia, BuildContext context) async {
     try {
       _logger.i('Iniciando geração de PDF para impressão');
-      
+
       // Gera o PDF
       final pdfBytes = await generateOcorrenciaPDF(ocorrencia);
-      
+
       _logger.i('PDF gerado com sucesso, abrindo diálogo de impressão');
-      
+
       // Abre o diálogo de impressão
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdfBytes,
         name: 'Ocorrência_${ocorrencia.id}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
       );
-      
+
       _logger.i('Diálogo de impressão aberto com sucesso');
     } catch (e) {
       _logger.e('Erro ao imprimir ocorrência', error: e);
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -236,18 +290,18 @@ class PrintService {
   static Future<String?> saveOcorrenciaPDF(Ocorrencia ocorrencia) async {
     try {
       _logger.i('Iniciando geração de PDF para salvar');
-      
+
       // Gera o PDF
       final pdfBytes = await generateOcorrenciaPDF(ocorrencia);
-      
+
       // Define o nome do arquivo
       final fileName = 'Ocorrência_${ocorrencia.id}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
-      
+
       _logger.i('PDF gerado com sucesso, salvando como: $fileName');
-      
+
       // Aqui você pode implementar a lógica para salvar o arquivo
       // Por exemplo, usando path_provider para obter o diretório de documentos
-      
+
       return fileName;
     } catch (e) {
       _logger.e('Erro ao salvar PDF da ocorrência', error: e);
