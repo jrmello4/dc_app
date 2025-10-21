@@ -11,6 +11,7 @@ import 'package:dc_app/models/ocorrencia.dart';
 import 'package:dc_app/services/auth_service.dart';
 import 'package:dc_app/services/status_ocorrencia_service.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
+import 'package:dc_app/services/print_service.dart';
 import 'package:dc_app/widgets/mensagem_widget.dart';
 
 class OcorrenciaDetailsScreen extends StatefulWidget {
@@ -102,6 +103,24 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
       _showError('Erro: ${e.toString().replaceFirst("Exception: ", "")}');
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
+    }
+  }
+
+  // Método para imprimir a ocorrência
+  void _printOcorrencia(Ocorrencia ocorrencia) async {
+    try {
+      _logger.i('Iniciando impressão da ocorrência ${ocorrencia.id}');
+      await PrintService.printOcorrencia(ocorrencia, context);
+    } catch (e) {
+      _logger.e('Erro ao imprimir ocorrência', error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao imprimir: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -206,6 +225,12 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
     return AppBar(
       title: Text('Ocorrência #${ocorrencia.id}'),
       actions: [
+        // Botão de impressão
+        IconButton(
+          icon: const Icon(Icons.print),
+          onPressed: () => _printOcorrencia(ocorrencia),
+          tooltip: 'Imprimir Ocorrência',
+        ),
         if (_isUpdatingStatus)
           const Padding(padding: EdgeInsets.only(right: 16.0), child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3.0))))
         else if (canManage)

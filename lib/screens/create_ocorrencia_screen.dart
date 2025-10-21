@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:logger/logger.dart';
 import 'package:dc_app/services/auth_service.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
+import 'package:dc_app/services/location_service.dart';
 
 class CreateOcorrenciaScreen extends StatefulWidget {
   const CreateOcorrenciaScreen({super.key});
@@ -25,6 +26,10 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
   int? _selectedTipoOcorrenciaId;
   final List<File> _images = [];
   bool _isSaving = false;
+  
+  // Variáveis para localização
+  String? _currentLocation;
+  bool _isGettingLocation = false;
 
   late Future<OcorrenciaCreationData> _creationDataFuture;
 
@@ -46,6 +51,43 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
     }).catchError((error) {
       _showError(error is AuthException ? error.message : 'Falha ao carregar dados para criação.');
     });
+  }
+
+  // Método para capturar localização atual
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isGettingLocation = true);
+    
+    try {
+      _logger.i('Solicitando permissão de localização...');
+      
+      // Solicita permissão de localização
+      bool hasPermission = await LocationService.requestLocationPermission();
+      if (!hasPermission) {
+        _showError('Permissão de localização negada. Não foi possível obter a localização atual.');
+        return;
+      }
+
+      _logger.i('Obtendo localização atual...');
+      
+      // Obtém a localização atual com endereço
+      final locationData = await LocationService.getCurrentLocationWithAddress();
+      
+      if (locationData != null) {
+        setState(() {
+          _currentLocation = locationData['address'];
+        });
+        
+        _logger.i('Localização obtida: ${locationData['address']}');
+        _showSuccess('Localização capturada com sucesso!');
+      } else {
+        _showError('Não foi possível obter a localização atual.');
+      }
+    } catch (e) {
+      _logger.e('Erro ao obter localização', error: e);
+      _showError('Erro ao obter localização: ${e.toString()}');
+    } finally {
+      setState(() => _isGettingLocation = false);
+    }
   }
 
   Future<void> _pickImages() async {
@@ -176,6 +218,8 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
                   prefixIcon: Icons.group_work_outlined,
                   validator: (v) => v == null ? 'Selecione o setor.' : null,
                 ),
+                // Campo de localização
+                _buildLocationField(),
                 _buildTextField(
                   controller: _descricaoController,
                   labelText: 'Descreva o problema ou solicitação...',
@@ -295,6 +339,73 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
       icon: const Icon(Icons.send_rounded),
       label: const Text('REGISTRAR OCORRÊNCIA'),
       onPressed: _submitForm,
+    );
+  }
+
+  // Widget para o campo de localização
+  Widget _buildLocationField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: 'Localização Atual',
+                  hintText: _currentLocation ?? 'Toque no botão para capturar localização',
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                  border: const OutlineInputBorder(),
+                ),
+                controller: TextEditingController(text: _currentLocation ?? ''),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: _isGettingLocation ? null : _getCurrentLocation,
+              icon: _isGettingLocation 
+                ? const SizedBox(
+                    width: 16, 
+                    height: 16, 
+                    child: CircularProgressIndicator(strokeWidth: 2)
+                  )
+                : const Icon(Icons.my_location),
+              label: Text(_isGettingLocation ? 'Obtendo...' : 'Capturar'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+        if (_currentLocation != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              border: Border.all(color: Colors.green.shade200),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green.shade600, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Localização capturada com sucesso!',
+                    style: TextStyle(
+                      color: Colors.green.shade700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

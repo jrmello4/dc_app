@@ -1,0 +1,257 @@
+// lib/services/print_service.dart
+
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:logger/logger.dart';
+import 'package:dc_app/models/ocorrencia.dart';
+import 'package:dc_app/services/auth_service.dart';
+import 'package:intl/intl.dart';
+
+class PrintService {
+  static final _logger = Logger();
+
+  /// Gera PDF da ocorrência
+  static Future<Uint8List> generateOcorrenciaPDF(Ocorrencia ocorrencia) async {
+    try {
+      final pdf = pw.Document();
+
+      // Formatação de datas
+      String formatDate(DateTime? date) {
+        if (date == null) return 'Não informado';
+        return DateFormat('dd/MM/yyyy HH:mm').format(date);
+      }
+
+      // Cabeçalho
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Cabeçalho com logo/título
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.orange,
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      pw.Text(
+                        'DEFESA CIVIL',
+                        style: pw.TextStyle(
+                          fontSize: 24,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white,
+                        ),
+                      ),
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        'Relatório de Ocorrência',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          color: PdfColors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                pw.SizedBox(height: 20),
+
+                // Informações da ocorrência
+                pw.Text(
+                  'INFORMAÇÕES DA OCORRÊNCIA',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.orange,
+                  ),
+                ),
+                
+                pw.SizedBox(height: 10),
+
+                // Tabela de informações
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.grey300),
+                  children: [
+                    _buildTableRow('ID:', ocorrencia.id.toString()),
+                    _buildTableRow('Assunto:', ocorrencia.assunto),
+                    _buildTableRow('Status:', ocorrencia.status),
+                    _buildTableRow('Prioridade:', ocorrencia.prioridadeNome ?? 'Não informado'),
+                    _buildTableRow('Tipo:', ocorrencia.tipoOcorrenciaNome ?? 'Não informado'),
+                    _buildTableRow('Setor:', ocorrencia.setorNome ?? 'Não informado'),
+                    _buildTableRow('Solicitante:', ocorrencia.solicitanteNome ?? 'Não informado'),
+                    _buildTableRow('Responsável:', ocorrencia.responsavelNome ?? 'Não informado'),
+                    _buildTableRow('Data de Início:', formatDate(ocorrencia.dataInicio)),
+                    _buildTableRow('Data de Fim:', formatDate(ocorrencia.dataFim)),
+                    _buildTableRow('Última Atualização:', formatDate(ocorrencia.dataUltimaAtualizacao)),
+                  ],
+                ),
+
+                pw.SizedBox(height: 20),
+
+                // Descrição
+                pw.Text(
+                  'DESCRIÇÃO',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.orange,
+                  ),
+                ),
+                
+                pw.SizedBox(height: 10),
+
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                  child: pw.Text(
+                    ocorrencia.descricao,
+                    style: const pw.TextStyle(fontSize: 12),
+                  ),
+                ),
+
+                pw.SizedBox(height: 20),
+
+                // Anexos (se houver)
+                if (ocorrencia.todasAnexoUrls.isNotEmpty) ...[
+                  pw.Text(
+                    'ANEXOS',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.orange,
+                    ),
+                  ),
+                  
+                  pw.SizedBox(height: 10),
+
+                  pw.Bullet(text: '${ocorrencia.todasAnexoUrls.length} anexo(s) disponível(is)'),
+                ],
+
+                pw.SizedBox(height: 30),
+
+                // Rodapé
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Relatório gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                      pw.Text(
+                        'Usuário: ${AuthService.nomeUsuario ?? 'Não informado'}',
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      return pdf.save();
+    } catch (e) {
+      _logger.e('Erro ao gerar PDF da ocorrência', error: e);
+      rethrow;
+    }
+  }
+
+  /// Constrói uma linha da tabela
+  static pw.TableRow _buildTableRow(String label, String value) {
+    return pw.TableRow(
+      children: [
+        pw.Container(
+          padding: const pw.EdgeInsets.all(8),
+          child: pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(8),
+          child: pw.Text(
+            value,
+            style: const pw.TextStyle(fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Imprime a ocorrência
+  static Future<void> printOcorrencia(Ocorrencia ocorrencia, BuildContext context) async {
+    try {
+      _logger.i('Iniciando geração de PDF para impressão');
+      
+      // Gera o PDF
+      final pdfBytes = await generateOcorrenciaPDF(ocorrencia);
+      
+      _logger.i('PDF gerado com sucesso, abrindo diálogo de impressão');
+      
+      // Abre o diálogo de impressão
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdfBytes,
+        name: 'Ocorrência_${ocorrencia.id}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
+      );
+      
+      _logger.i('Diálogo de impressão aberto com sucesso');
+    } catch (e) {
+      _logger.e('Erro ao imprimir ocorrência', error: e);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao gerar PDF: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Salva o PDF em arquivo
+  static Future<String?> saveOcorrenciaPDF(Ocorrencia ocorrencia) async {
+    try {
+      _logger.i('Iniciando geração de PDF para salvar');
+      
+      // Gera o PDF
+      final pdfBytes = await generateOcorrenciaPDF(ocorrencia);
+      
+      // Define o nome do arquivo
+      final fileName = 'Ocorrência_${ocorrencia.id}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
+      
+      _logger.i('PDF gerado com sucesso, salvando como: $fileName');
+      
+      // Aqui você pode implementar a lógica para salvar o arquivo
+      // Por exemplo, usando path_provider para obter o diretório de documentos
+      
+      return fileName;
+    } catch (e) {
+      _logger.e('Erro ao salvar PDF da ocorrência', error: e);
+      return null;
+    }
+  }
+}

@@ -55,6 +55,10 @@ dependencies:
   # Para gerenciamento de estado
   provider: ^6.1.5+1
 
+  # Para captura de localização
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
