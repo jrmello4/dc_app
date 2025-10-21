@@ -78,18 +78,53 @@ class OcorrenciaService {
   }
 
   static Future<List<DropdownItem>> _fetchGenericDropdownItems(String url, Map<String, String> headers) async {
-    final response = await http.get(Uri.parse(url), headers: headers);
-    if (response.statusCode == 200) {
-      final List<dynamic> body = json.decode(utf8.decode(response.bodyBytes));
-      return body.map((item) => DropdownItem(id: item['id'], nome: item['nome'])).toList();
+    _logger.i("Fazendo requisição para: $url");
+    _logger.i("Headers: $headers");
+    
+    try {
+      final response = await http.get(Uri.parse(url), headers: headers).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          _logger.e("Timeout na requisição para: $url");
+          throw OcorrenciaException('Timeout na requisição para: $url');
+        },
+      );
+      
+      _logger.i("Resposta recebida - Status: ${response.statusCode}");
+      _logger.d("Body: ${response.body}");
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> body = json.decode(utf8.decode(response.bodyBytes));
+        _logger.i("Itens decodificados: ${body.length}");
+        return body.map((item) => DropdownItem(id: item['id'], nome: item['nome'])).toList();
+      } else {
+        _logger.e("Erro na requisição - Status: ${response.statusCode}, Body: ${response.body}");
+        throw OcorrenciaException('Falha ao carregar itens: $url (Status: ${response.statusCode})');
+      }
+    } catch (e) {
+      _logger.e("Erro na requisição para $url", error: e);
+      if (e is OcorrenciaException) {
+        rethrow;
+      }
+      throw OcorrenciaException('Erro de conexão: $e');
     }
-    throw OcorrenciaException('Falha ao carregar itens: $url');
   }
 
   static Future<Map<String, dynamic>> _fetchSetores(String url, Map<String, String> headers) async {
     _logger.i("Buscando setores na URL: $url");
-    final response = await http.get(Uri.parse(url), headers: headers);
-    _logger.i("Resposta dos setores - Status: ${response.statusCode}");
+    _logger.i("Headers: $headers");
+    
+    try {
+      final response = await http.get(Uri.parse(url), headers: headers).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          _logger.e("Timeout na requisição para setores: $url");
+          throw OcorrenciaException('Timeout na requisição para setores: $url');
+        },
+      );
+      
+      _logger.i("Resposta dos setores - Status: ${response.statusCode}");
+      _logger.d("Body dos setores: ${response.body}");
     
     if (response.statusCode == 200) {
       try {
@@ -113,6 +148,13 @@ class OcorrenciaService {
     } else {
       _logger.e("Falha ao carregar setores. Status: ${response.statusCode}, Body: ${response.body}");
       throw OcorrenciaException('Falha ao carregar setores. Status: ${response.statusCode}');
+    }
+    } catch (e) {
+      _logger.e("Erro na requisição para setores $url", error: e);
+      if (e is OcorrenciaException) {
+        rethrow;
+      }
+      throw OcorrenciaException('Erro de conexão para setores: $e');
     }
   }
 

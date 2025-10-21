@@ -10,6 +10,7 @@ import 'package:logger/logger.dart';
 import 'package:dc_app/models/ocorrencia.dart';
 import 'package:dc_app/services/auth_service.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 
 class PrintService {
   static final _logger = Logger();
@@ -19,7 +20,11 @@ class PrintService {
     try {
       final uri = Uri.parse(imageUrl);
       if (uri.scheme == 'http' || uri.scheme == 'https') {
-        return pw.NetworkImage(imageUrl);
+        // Para URLs HTTP/HTTPS, baixa a imagem e converte para MemoryImage
+        final response = await http.get(Uri.parse(imageUrl));
+        if (response.statusCode == 200) {
+          return pw.MemoryImage(response.bodyBytes);
+        }
       } else {
         // Para URLs locais ou caminhos de arquivo
         final file = File(imageUrl);
@@ -34,10 +39,67 @@ class PrintService {
     return null;
   }
 
+  /// Carrega todas as imagens e retorna widgets para o PDF
+  static Future<List<pw.Widget>> _loadAllImages(List<String> imageUrls) async {
+    final List<pw.Widget> imageWidgets = [];
+
+    for (String imageUrl in imageUrls) {
+      try {
+        final image = await _loadImageFromUrl(imageUrl);
+        if (image != null) {
+          imageWidgets.add(
+            pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: 10),
+              child: pw.Column(
+                children: [
+                  pw.Text(
+                    'Imagem: ${imageUrl.split('/').last}',
+                    style: const pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
+                  ),
+                  pw.SizedBox(height: 5),
+                  pw.Container(
+                    constraints: const pw.BoxConstraints(maxHeight: 200),
+                    child: pw.Image(image, fit: pw.BoxFit.contain),
+                  ),
+                ],
+              ),
+            ),
+          );
+        } else {
+          imageWidgets.add(
+            pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: 10),
+              child: pw.Text(
+                'Erro ao carregar: ${imageUrl.split('/').last}',
+                style: const pw.TextStyle(fontSize: 10, color: PdfColors.red),
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        _logger.e('Erro ao processar imagem: $imageUrl', error: e);
+        imageWidgets.add(
+          pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 10),
+            child: pw.Text(
+              'Erro ao processar: ${imageUrl.split('/').last}',
+              style: const pw.TextStyle(fontSize: 10, color: PdfColors.red),
+            ),
+          ),
+        );
+      }
+    }
+
+    return imageWidgets;
+  }
+
   /// Gera PDF da ocorrência
   static Future<Uint8List> generateOcorrenciaPDF(Ocorrencia ocorrencia) async {
     try {
       final pdf = pw.Document();
+
+      // Carrega todas as imagens primeiro
+      final imageWidgets = await _loadAllImages(ocorrencia.todasAnexoUrls);
 
       // Formatação de datas
       String formatDate(DateTime? date) {
@@ -154,43 +216,15 @@ class PrintService {
                       color: PdfColors.orange,
                     ),
                   ),
-                  
+
                   pw.SizedBox(height: 10),
 
                   pw.Text('${ocorrencia.todasAnexoUrls.length} anexo(s) disponível(is)'),
-                  
+
                   pw.SizedBox(height: 10),
 
-                  // Lista de imagens
-                  ...await Future.wait(ocorrencia.todasAnexoUrls.map((imageUrl) async {
-                    final image = await _loadImageFromUrl(imageUrl);
-                    if (image != null) {
-                      return pw.Container(
-                        margin: const pw.EdgeInsets.only(bottom: 10),
-                        child: pw.Column(
-                          children: [
-                            pw.Text(
-                              'Imagem: ${imageUrl.split('/').last}',
-                              style: const pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
-                            ),
-                            pw.SizedBox(height: 5),
-                            pw.Container(
-                              constraints: const pw.BoxConstraints(maxHeight: 200),
-                              child: pw.Image(image, fit: pw.BoxFit.contain),
-                            ),
-                          ],
-                        ),
-                      );
-                    } else {
-                      return pw.Container(
-                        margin: const pw.EdgeInsets.only(bottom: 10),
-                        child: pw.Text(
-                          'Erro ao carregar: ${imageUrl.split('/').last}',
-                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.red),
-                        ),
-                      );
-                    }
-                  })),
+                  // Lista de imagens - agora usa os widgets já carregados
+                  ...imageWidgets,
                 ],
 
                 pw.SizedBox(height: 30),
