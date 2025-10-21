@@ -43,22 +43,37 @@ class OcorrenciaService {
     final userId = AuthService.userId;
     if (token == null || userId == null) throw AuthException('Sessão expirada.');
     final headers = {'Authorization': 'Token $token', 'Accept': 'application/json'};
+    
+    _logger.i("Iniciando busca de dados para criação de ocorrência");
+    _logger.i("Token disponível: ${token != null}");
+    _logger.i("User ID: $userId");
+    
     try {
-      final results = await Future.wait([
-        _fetchGenericDropdownItems('${ApiConfig.baseUrl}/prioridade/list/', headers),
-        // ATUALIZADO: /tipoocorrencia/list/
-        _fetchGenericDropdownItems('${ApiConfig.baseUrl}/tipochamado/list/', headers),
-        _fetchSetores('${ApiConfig.baseUrl}/setor/list/?usuario_id=$userId', headers),
-      ]);
+      // Busca os dados em paralelo
+      _logger.i("Buscando prioridades...");
+      final prioridades = await _fetchGenericDropdownItems('${ApiConfig.baseUrl}/prioridade/list/', headers);
+      _logger.i("Prioridades carregadas: ${prioridades.length} itens");
+      
+      _logger.i("Buscando tipos de ocorrência...");
+      final tiposOcorrencia = await _fetchGenericDropdownItems('${ApiConfig.baseUrl}/tipochamado/list/', headers);
+      _logger.i("Tipos de ocorrência carregados: ${tiposOcorrencia.length} itens");
+      
+      _logger.i("Buscando setores...");
+      final setoresData = await _fetchSetores('${ApiConfig.baseUrl}/setor/list/?usuario_id=$userId', headers);
+      _logger.i("Setores carregados: ${(setoresData['setores'] as List).length} itens");
+      
       return OcorrenciaCreationData(
-        prioridades: results[0] as List<DropdownItem>,
-        tiposOcorrencia: results[1] as List<DropdownItem>,
-        setores: (results[2] as Map<String, dynamic>)['setores'] as List<DropdownItem>,
-        setorUsuarioId: (results[2] as Map<String, dynamic>)['setor_usuario_id'] as int?,
+        prioridades: prioridades,
+        tiposOcorrencia: tiposOcorrencia,
+        setores: setoresData['setores'] as List<DropdownItem>,
+        setorUsuarioId: setoresData['setor_usuario_id'] as int?,
       );
     } catch (e) {
       _logger.e("Erro ao buscar dados de criação", error: e);
-      throw OcorrenciaException('Falha ao carregar dados para criação.');
+      if (e is OcorrenciaException) {
+        rethrow; // Re-lança a exceção específica
+      }
+      throw OcorrenciaException('Falha ao carregar dados para criação: $e');
     }
   }
 
@@ -72,15 +87,33 @@ class OcorrenciaService {
   }
 
   static Future<Map<String, dynamic>> _fetchSetores(String url, Map<String, String> headers) async {
+    _logger.i("Buscando setores na URL: $url");
     final response = await http.get(Uri.parse(url), headers: headers);
+    _logger.i("Resposta dos setores - Status: ${response.statusCode}");
+    
     if (response.statusCode == 200) {
-      final Map<String, dynamic> body = json.decode(utf8.decode(response.bodyBytes));
-      return {
-        'setores': (body['setores'] as List).map((item) => DropdownItem(id: item['id'], nome: item['nome'])).toList(),
-        'setor_usuario_id': int.tryParse(body['setor_usuario'].toString()),
-      };
+      try {
+        final Map<String, dynamic> body = json.decode(utf8.decode(response.bodyBytes));
+        _logger.d("Resposta dos setores: $body");
+        
+        // Verifica se a resposta tem a estrutura esperada
+        if (body.containsKey('setores') && body['setores'] is List) {
+          return {
+            'setores': (body['setores'] as List).map((item) => DropdownItem(id: item['id'], nome: item['nome'])).toList(),
+            'setor_usuario_id': int.tryParse(body['setor_usuario']?.toString() ?? ''),
+          };
+        } else {
+          _logger.e("Estrutura de resposta inesperada para setores: $body");
+          throw OcorrenciaException('Estrutura de resposta inesperada para setores.');
+        }
+      } catch (e) {
+        _logger.e("Erro ao processar resposta dos setores", error: e);
+        throw OcorrenciaException('Erro ao processar resposta dos setores: $e');
+      }
+    } else {
+      _logger.e("Falha ao carregar setores. Status: ${response.statusCode}, Body: ${response.body}");
+      throw OcorrenciaException('Falha ao carregar setores. Status: ${response.statusCode}');
     }
-    throw OcorrenciaException('Falha ao carregar setores.');
   }
 
   static Future<void> createOcorrencia({required String assunto, required String descricao, int? prioridadeId, int? setorId, int? tipoOcorrenciaId, List<File>? imagens}) async {
