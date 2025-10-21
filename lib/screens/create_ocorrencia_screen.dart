@@ -7,6 +7,7 @@ import 'package:logger/logger.dart';
 import 'package:dc_app/services/auth_service.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
+import 'package:dc_app/widgets/autocomplete_field.dart';
 
 class CreateOcorrenciaScreen extends StatefulWidget {
   const CreateOcorrenciaScreen({super.key});
@@ -354,28 +355,28 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
       children: [
         const SizedBox(height: 16),
         
-        // Campo de Área/Região
-        _buildTextField(
+        // Campo de Área/Região com autocompletar
+        AutocompleteField(
           controller: _areaController,
-          labelText: 'Área/Região (ex: Centro, Zona Sul, Bairro X)',
+          labelText: 'Área/Região',
+          hintText: 'Digite a área (ex: Centro, Zona Sul)',
           prefixIcon: Icons.map_outlined,
+          isArea: true,
           validator: (v) => v == null || v.trim().isEmpty ? 'Informe a área/região.' : null,
         ),
         
         const SizedBox(height: 16),
         
-        // Campo de Localização Específica
+        // Campo de Localização Específica com autocompletar
         Row(
           children: [
             Expanded(
-              child: TextFormField(
+              child: AutocompleteField(
                 controller: _locationController,
-                decoration: const InputDecoration(
-                  labelText: 'Localização Específica',
-                  hintText: 'Digite o endereço ou toque em Capturar',
-                  prefixIcon: Icon(Icons.location_on_outlined),
-                  border: OutlineInputBorder(),
-                ),
+                labelText: 'Localização Específica',
+                hintText: 'Digite o local (ex: Praça da Matriz)',
+                prefixIcon: Icons.location_on_outlined,
+                isArea: false,
                 validator: (v) => v == null || v.trim().isEmpty ? 'Informe a localização específica.' : null,
               ),
             ),
