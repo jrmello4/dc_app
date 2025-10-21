@@ -1,0 +1,242 @@
+// lib/services/ocorrencia_service.dart
+
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:logger/logger.dart';
+import 'package:dc_app/config/api_config.dart';
+import 'package:dc_app/services/auth_service.dart';
+import 'package:dc_app/models/ocorrencia.dart';
+import 'package:dc_app/models/mensagem.dart';
+import 'package:dc_app/models/avaliacao.dart';
+
+class DropdownItem {
+  final int id;
+  final String nome;
+  DropdownItem({required this.id, required this.nome});
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is DropdownItem && runtimeType == other.runtimeType && id == other.id;
+  @override
+  int get hashCode => id.hashCode;
+}
+
+class OcorrenciaCreationData {
+  final List<DropdownItem> prioridades;
+  final List<DropdownItem> tiposOcorrencia;
+  final List<DropdownItem> setores;
+  final int? setorUsuarioId;
+  OcorrenciaCreationData({required this.prioridades, required this.tiposOcorrencia, required this.setores, this.setorUsuarioId});
+}
+
+class OcorrenciaException implements Exception {
+  final String message;
+  OcorrenciaException(this.message);
+  @override
+  String toString() => message;
+}
+
+class OcorrenciaService {
+  static final _logger = Logger(printer: PrettyPrinter(methodCount: 1));
+
+  static Future<OcorrenciaCreationData> getCreationData() async {
+    final token = AuthService.token;
+    final userId = AuthService.userId;
+    if (token == null || userId == null) throw AuthException('Sessão expirada.');
+    final headers = {'Authorization': 'Token $token', 'Accept': 'application/json'};
+    try {
+      final results = await Future.wait([
+        _fetchGenericDropdownItems('${ApiConfig.baseUrl}/prioridade/list/', headers),
+        // ATUALIZADO: /tipoocorrencia/list/
+        _fetchGenericDropdownItems('${ApiConfig.baseUrl}/tipochamado/list/', headers),
+        _fetchSetores('${ApiConfig.baseUrl}/setor/list/?usuario_id=$userId', headers),
+      ]);
+      return OcorrenciaCreationData(
+        prioridades: results[0] as List<DropdownItem>,
+        tiposOcorrencia: results[1] as List<DropdownItem>,
+        setores: (results[2] as Map<String, dynamic>)['setores'] as List<DropdownItem>,
+        setorUsuarioId: (results[2] as Map<String, dynamic>)['setor_usuario_id'] as int?,
+      );
+    } catch (e) {
+      _logger.e("Erro ao buscar dados de criação", error: e);
+      throw OcorrenciaException('Falha ao carregar dados para criação.');
+    }
+  }
+
+  static Future<List<DropdownItem>> _fetchGenericDropdownItems(String url, Map<String, String> headers) async {
+    final response = await http.get(Uri.parse(url), headers: headers);
+    if (response.statusCode == 200) {
+      final List<dynamic> body = json.decode(utf8.decode(response.bodyBytes));
+      return body.map((item) => DropdownItem(id: item['id'], nome: item['nome'])).toList();
+    }
+    throw OcorrenciaException('Falha ao carregar itens: $url');
+  }
+
+  static Future<Map<String, dynamic>> _fetchSetores(String url, Map<String, String> headers) async {
+    final response = await http.get(Uri.parse(url), headers: headers);
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> body = json.decode(utf8.decode(response.bodyBytes));
+      return {
+        'setores': (body['setores'] as List).map((item) => DropdownItem(id: item['id'], nome: item['nome'])).toList(),
+        'setor_usuario_id': int.tryParse(body['setor_usuario'].toString()),
+      };
+    }
+    throw OcorrenciaException('Falha ao carregar setores.');
+  }
+
+  static Future<void> createOcorrencia({required String assunto, required String descricao, int? prioridadeId, int? setorId, int? tipoOcorrenciaId, List<File>? imagens}) async {
+    final token = AuthService.token;
+    final userId = AuthService.userId;
+    if (token == null || userId == null) throw AuthException('Sessão expirada.');
+    // ATUALIZADO: /ocorrencia/add/
+    var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/chamado/add/'));
+    request.headers['Authorization'] = 'Token $token';
+    request.fields.addAll({
+      'nome': assunto,
+      'descricao': descricao,
+      'usuario': userId.toString(),
+      if (prioridadeId != null) 'prioridade': prioridadeId.toString(),
+      if (setorId != null) 'setor': setorId.toString(),
+      // ATUALIZADO: tipo_ocorrencia
+      if (tipoOcorrenciaId != null) 'tipo_ocorrencia': tipoOcorrenciaId.toString(),
+    });
+    if (imagens != null) {
+      for (var img in imagens) {
+        request.files.add(await http.MultipartFile.fromPath('imagem', img.path));
+      }
+    }
+    final response = await request.send();
+    if (response.statusCode >= 300) {
+      _logger.e("Falha ao criar ocorrência. Status: ${response.statusCode}");
+      throw OcorrenciaException('Falha ao criar ocorrência.');
+    }
+  }
+
+  // CORRIGIDO: Método implementado para listar ocorrências do usuário por status.
+  static Future<List<Ocorrencia>> getOcorrenciasByStatus(String status) async {
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
+    // Endpoint para listar ocorrências por status para o usuário logado
+    final url = Uri.parse('${ApiConfig.baseUrl}/chamado/status/$status/usuario/listar/');
+    final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+      return data.map((json) => Ocorrencia.fromJson(json)).toList();
+    }
+    // Retorna lista vazia ou lança exceção para erros graves (400+)
+    if (response.statusCode >= 400) {
+      throw OcorrenciaException('Falha ao carregar ocorrências por status. Código: ${response.statusCode}');
+    }
+    return [];
+  }
+
+  static Future<Ocorrencia> getOcorrenciaDetails(int ocorrenciaId) async {
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
+    // ATUALIZADO: /ocorrencia/.../visualizar/
+    final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/visualizar/');
+    final headers = {'Authorization': 'Token $token'};
+    final response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      return Ocorrencia.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+    }
+    _logger.e("Falha ao carregar detalhes da ocorrência. Status: ${response.statusCode}");
+    throw OcorrenciaException('Falha ao carregar detalhes da ocorrência.');
+  }
+
+  static Future<List<Mensagem>> getMessages(int ocorrenciaId) async {
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
+    // ATUALIZADO: /ocorrencia/.../mensagem/list/
+    final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/mensagem/list/');
+    final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+    if (response.statusCode == 200) {
+      final List<dynamic> body = json.decode(utf8.decode(response.bodyBytes));
+      return body.map((item) => Mensagem.fromJson(item)).toList();
+    }
+    return [];
+  }
+
+  static Future<List<Avaliacao>> getRatings(int ocorrenciaId) async {
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
+    // ATUALIZADO: /ocorrencia/.../avaliacao/list/
+    final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/avaliacao/list/');
+    final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+    if (response.statusCode == 200) {
+      final List<dynamic> body = json.decode(utf8.decode(response.bodyBytes));
+      return body.map((item) => Avaliacao.fromJson(item)).toList();
+    }
+    return [];
+  }
+
+  static Future<void> addMessage(int ocorrenciaId, String text, {File? image}) async {
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
+
+    // ATUALIZADO: /ocorrencia/.../mensagem/add/
+    final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/mensagem/add/');
+    var request = http.MultipartRequest('POST', url);
+    request.headers['Authorization'] = 'Token $token';
+
+    if (text.isNotEmpty) {
+      request.fields['descricao'] = text;
+    }
+    if (image != null) {
+      // --- CORREÇÃO APLICADA AQUI (baseado no seu código original) ---
+      request.files.add(await http.MultipartFile.fromPath('imagem', image.path));
+    }
+
+    final response = await request.send();
+
+    if (response.statusCode != 201) {
+      final responseBody = await response.stream.bytesToString();
+      _logger.e('Falha ao enviar mensagem', error: responseBody, stackTrace: StackTrace.current);
+      throw OcorrenciaException('Falha ao enviar mensagem.');
+    }
+  }
+
+  static Future<void> addRating({required int ocorrenciaId, required int nota, required String comentario}) async {
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
+    // ATUALIZADO: /ocorrencia/.../avaliacao/add/
+    final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/avaliacao/add/');
+    final response = await http.post(url, headers: {'Content-Type': 'application/json', 'Authorization': 'Token $token'}, body: json.encode({'nota': nota, 'descricao': comentario}));
+    if (response.statusCode >= 300) throw OcorrenciaException('Falha ao enviar avaliação.');
+  }
+
+  static Future<void> addImage(int ocorrenciaId, File image) async {
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
+    // ATUALIZADO: /ocorrencia/.../imagem/add/
+    var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/imagem/add/'));
+    request.headers['Authorization'] = 'Token $token';
+    request.files.add(await http.MultipartFile.fromPath('imagem', image.path));
+    final response = await request.send();
+    if (response.statusCode >= 300) throw OcorrenciaException('Falha ao enviar imagem.');
+  }
+
+  static Future<List<Ocorrencia>> getAssignedOcorrencias() async {
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
+    final headers = {'Authorization': 'Token $token'};
+    try {
+      final results = await Future.wait([_fetchAssignedByStatus('0', headers), _fetchAssignedByStatus('1', headers)]);
+      final allOcorrencias = [...results[0], ...results[1]];
+      allOcorrencias.sort((a, b) => (b.dataInicio ?? DateTime(0)).compareTo(a.dataInicio ?? DateTime(0)));
+      return allOcorrencias;
+    } catch (e) {
+      throw OcorrenciaException('Erro ao buscar ocorrências atribuídas.');
+    }
+  }
+
+  static Future<List<Ocorrencia>> _fetchAssignedByStatus(String status, Map<String, String> headers) async {
+    // ATUALIZADO: /ocorrencia/status/...
+    final url = Uri.parse('${ApiConfig.baseUrl}/chamado/status/$status/responsavel/usuario/listar/');
+    final response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+      return data.map((json) => Ocorrencia.fromJson(json)).toList();
+    }
+    return [];
+  }
+}

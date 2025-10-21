@@ -1,0 +1,79 @@
+name: dc_app
+description: "Aplicativo de Ocorrências da Defesa Civil."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Ícones padrão do iOS
+  cupertino_icons: ^1.0.8
+
+  # Para chamadas de API REST
+  http: ^1.5.0
+
+  # Para formatação (datas, números, etc.)
+  intl: ^0.20.2
+
+  # Para selecionar imagens da galeria ou câmera
+  image_picker: ^1.2.0
+
+  # Para receber deep links (redefinição de senha)
+  app_links: ^6.4.1
+
+  shared_preferences: ^2.5.3
+
+  cached_network_image: ^3.4.1
+
+  # Para armazenamento seguro de dados (ex: token de autenticação)
+  flutter_secure_storage: ^9.2.4
+
+  # Para um sistema de logging estruturado
+  logger: ^2.6.1
+
+  # Para abrir URLs (navegador, e-mail, etc.)
+  url_launcher: ^6.3.2
+
+  # Para renderizar imagens SVG
+  flutter_svg: ^2.2.1
+
+  pdf: ^3.10.8
+
+  printing: ^5.11.1
+
+  # firebase_core: ^4.1.1
+  # firebase_messaging: ^16.0.2
+  # flutter_local_notifications: ^17.1.2
+
+
+  # Para gerenciamento de estado
+  provider: ^6.1.5+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Contém um conjunto de lints recomendados para incentivar boas práticas de codificação.
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+# A seção a seguir é específica para pacotes Flutter.
+flutter:
+  # Garante que a fonte Material Icons seja incluída na sua aplicação.
+  uses-material-design: true
+
+  # Para adicionar assets à sua aplicação, adicione uma seção assets como esta:
+  assets:
+    - assets/images/
+
+# Configurações para o gerador de ícones do app.
+flutter_launcher_icons:
+  android: "ic_launcher"
+  image_path: "assets/images/icon.png"
+  min_sdk_android: 21 # Necessário para ícones adaptativos
