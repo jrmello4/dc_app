@@ -97,70 +97,6 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
   }
 
 
-  void _saveOcorrencia() async {
-    if (_selectedPolygon.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Desenhe uma área no mapa primeiro'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-
-    try {
-      // Calcula informações da área desenhada
-      final area = _calculatePolygonArea(_selectedPolygon);
-      final perimeter = _calculatePolygonPerimeter(_selectedPolygon);
-      
-      // Cria dados completos do mapa
-      final mapData = {
-        'center': {
-          'lat': _currentPosition?.latitude ?? -26.3726761,
-          'lng': _currentPosition?.longitude ?? -48.7233351,
-        },
-        'polygon': _selectedPolygon,
-        'area': area,
-        'perimeter': perimeter,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
-      
-      print('💾 Salvando ocorrência com dados do mapa...');
-      print('📍 Centro: ${mapData['center']}');
-      print('🗺️ Polígono: ${_selectedPolygon.length} pontos');
-      print('📊 Área: ${area.toStringAsFixed(2)} m²');
-      print('📏 Perímetro: ${perimeter.toStringAsFixed(2)} m');
-      
-      await OcorrenciaService.createOcorrencia(
-        assunto: 'Ocorrência com área desenhada',
-        descricao: 'Ocorrência criada com polígono desenhado no mapa. Área: ${area.toStringAsFixed(2)} m², Perímetro: ${perimeter.toStringAsFixed(2)} m.',
-        latitude: _currentPosition?.latitude,
-        longitude: _currentPosition?.longitude,
-        poligono: _selectedPolygon,
-        mapData: mapData, // Novo parâmetro com dados completos do mapa
-      );
-      
-      print('✅ Ocorrência salva com sucesso!');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ocorrência criada com sucesso!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      
-      // Volta para a tela anterior
-      Navigator.of(context).pop(true);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao criar ocorrência: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 
   double _calculatePolygonArea(List<List<double>> polygon) {
     if (polygon.length < 3) return 0.0;
@@ -208,6 +144,16 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Atualizar dados',
           ),
+          if (_selectedPolygon.isNotEmpty)
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).pop(_selectedPolygon),
+              icon: const Icon(Icons.check, color: Colors.white),
+              label: const Text('Usar Esta Área', style: TextStyle(color: Colors.white)),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+            ),
         ],
       ),
       body: _isLoading
@@ -324,18 +270,6 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
                               onPressed: () => Navigator.of(context).pop(),
                               icon: const Icon(Icons.arrow_back),
                               label: const Text('Cancelar'),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _selectedPolygon.isNotEmpty ? _saveOcorrencia : null,
-                              icon: const Icon(Icons.save),
-                              label: const Text('Salvar Ocorrência'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                              ),
                             ),
                           ),
                         ],

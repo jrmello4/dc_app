@@ -195,10 +195,11 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
       ),
     );
     
-    if (result == true && mounted) {
+    if (result != null && result is List<List<double>> && mounted) {
       // O usuário desenhou uma área no mapa
       setState(() {
         _hasDrawnArea = true;
+        _drawnPolygon = result;
       });
       _showSuccess('Área desenhada com sucesso!');
     }
