@@ -118,8 +118,8 @@ class OcorrenciaService {
     print('📤 Enviando dados para o servidor:');
     print('📍 Latitude: $latitude');
     print('📍 Longitude: $longitude');
-    print('🗺️ Polígono: ${poligono?.length} pontos');
-    if (poligono != null) {
+    print('🗺️ Polígono: ${poligono?.length ?? 0} pontos');
+    if (poligono != null && poligono.isNotEmpty) {
       print('🗺️ Primeiro ponto: ${poligono.first}');
     }
     if (mapData != null) {
