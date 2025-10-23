@@ -43,12 +43,36 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
       // Carrega dados de criação (setores)
       final creationData = await OcorrenciaService.getCreationData();
       
-      // Obtém localização atual para centralizar o mapa
-      final locationData = await LocationService.getCurrentLocationOnly();
+      // Obtém localização atual automaticamente
+      await _getCurrentLocation();
       
       setState(() {
         _setores = creationData.setores;
-        if (locationData != null) {
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Erro ao carregar dados: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      // Solicita permissão de localização
+      bool hasPermission = await LocationService.requestLocationPermission();
+      if (!hasPermission) {
+        throw Exception('Permissão de localização negada');
+      }
+
+      // Obtém localização atual
+      final locationData = await LocationService.getCurrentLocationOnly();
+      
+      if (locationData != null) {
+        setState(() {
           _currentPosition = Position(
             latitude: locationData['latitude'],
             longitude: locationData['longitude'],
@@ -61,16 +85,11 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
             altitudeAccuracy: 0.0,
             headingAccuracy: 0.0,
           );
-        }
-      });
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Erro ao carregar dados: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      print('Erro ao obter localização: $e');
+      // Continua sem localização se houver erro
     }
   }
 

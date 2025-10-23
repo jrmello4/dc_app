@@ -425,68 +425,21 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
         
         const SizedBox(height: 12),
         
-        // Botão para obter localização atual
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _isGettingLocation ? null : _getCurrentLocation,
-                icon: _isGettingLocation 
-                  ? const SizedBox(
-                      width: 16, 
-                      height: 16, 
-                      child: CircularProgressIndicator(strokeWidth: 2)
-                    )
-                  : const Icon(Icons.my_location),
-                label: Text(_isGettingLocation ? 'Obtendo...' : 'Obter Minha Localização'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _openMapDrawing,
-                icon: const Icon(Icons.map),
-                label: Text(_hasDrawnArea ? 'Editar Área' : 'Desenhar Área'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _hasDrawnArea ? Colors.green : Colors.orange,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
-        
-        // Status da localização
-        if (_currentPosition != null) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              border: Border.all(color: Colors.blue.shade200),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.blue.shade600, size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Localização obtida: ${_currentPosition!.latitude.toStringAsFixed(6)}, ${_currentPosition!.longitude.toStringAsFixed(6)}',
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
+        // Botão para desenhar área (localização obtida automaticamente)
+        Container(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _openMapDrawing,
+            icon: const Icon(Icons.map),
+            label: Text(_hasDrawnArea ? 'Editar Área Desenhada' : 'Desenhar Área no Mapa'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _hasDrawnArea ? Colors.green : Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
             ),
           ),
-        ],
+        ),
+        
         
         // Status da área desenhada
         if (_hasDrawnArea) ...[
