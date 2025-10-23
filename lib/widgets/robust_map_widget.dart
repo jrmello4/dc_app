@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:dc_app/services/setor_location_service.dart';
 import 'package:dc_app/models/setor.dart';
 
 class RobustMapWidget extends StatefulWidget {
@@ -36,7 +35,6 @@ class _RobustMapWidgetState extends State<RobustMapWidget> {
   bool _hasError = false;
   String? _errorMessage;
   List<List<double>> _currentPolygon = [];
-  Setor? _selectedSetor;
 
   @override
   void initState() {
@@ -128,9 +126,6 @@ class _RobustMapWidgetState extends State<RobustMapWidget> {
               orElse: () => widget.setores.first,
             );
             if (mounted) {
-              setState(() {
-                _selectedSetor = setor;
-              });
               widget.onSetorSelected?.call(setor);
             }
           }
@@ -276,13 +271,7 @@ class _RobustMapWidgetState extends State<RobustMapWidget> {
                     addInitialPolygon();
                 }
                 
-                // Adiciona marcador da posição atual
-                if (${widget.currentPosition != null}) {
-                    L.marker([$currentLat, $currentLon])
-                        .addTo(map)
-                        .bindPopup('Sua localização atual')
-                        .openPopup();
-                }
+                // Não adiciona marcador fixo - permite escolha livre da área
                 
                 // Configura eventos de desenho
                 setupDrawingEvents();
@@ -431,10 +420,17 @@ class _RobustMapWidgetState extends State<RobustMapWidget> {
         
         function clearPolygon() {
             try {
-                drawnItems.clearLayers();
+                // Remove todos os layers desenhados
+                if (drawnItems) {
+                    drawnItems.clearLayers();
+                }
                 currentPolygon = null;
+                
+                // Notifica que o polígono foi limpo
                 FlutterChannel.postMessage('polygonChanged|');
                 updateInfoPanel();
+                
+                console.log('Polígono limpo com sucesso');
             } catch (error) {
                 console.error('Erro ao limpar polígono:', error);
             }

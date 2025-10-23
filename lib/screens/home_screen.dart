@@ -6,6 +6,7 @@ import 'package:dc_app/screens/assigned_ocorrencias_screen.dart'; // Import corr
 import 'package:dc_app/screens/create_ocorrencia_screen.dart';   // Import corrigido
 import 'package:dc_app/screens/login_screen.dart';                // Import corrigido
 import 'package:dc_app/screens/ocorrencia_list_screen.dart';    // Import corrigido
+import 'package:dc_app/screens/ocorrencias_list_screen.dart';  // Nova tela de lista
 import 'package:dc_app/services/auth_service.dart';              // Import corrigido
 import 'package:dc_app/screens/user_profile_screen.dart';         // Import corrigido
 
@@ -121,6 +122,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const CreateOcorrenciaScreen())), //
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 20),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Botão para acessar lista de ocorrências com mapa
+              ElevatedButton.icon(
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('Ocorrências com Mapa'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const OcorrenciasListScreen())),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  backgroundColor: Colors.green.shade700,
                 ),
               ),
             ],

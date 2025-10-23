@@ -3,9 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
-import 'package:dc_app/services/location_service.dart';
 import 'package:dc_app/services/setor_location_service.dart';
 import 'package:dc_app/widgets/robust_map_widget.dart';
+import 'package:dc_app/widgets/setor_selector_widget.dart';
 import 'package:dc_app/models/setor.dart';
 
 class MapDrawingScreen extends StatefulWidget {
@@ -17,7 +17,6 @@ class MapDrawingScreen extends StatefulWidget {
 
 class _MapDrawingScreenState extends State<MapDrawingScreen> {
   List<Setor> _setores = [];
-  Position? _currentPosition;
   List<List<double>> _selectedPolygon = [];
   Setor? _selectedSetor;
   bool _isLoading = true;
@@ -41,41 +40,10 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
       // Carrega dados de criação (setores)
       final creationData = await OcorrenciaService.getCreationData();
       
-      // Obtém localização atual (método otimizado)
-      final locationData = await LocationService.getCurrentLocationOnly();
-      
       setState(() {
         _setores = creationData.setores;
-        if (locationData != null) {
-          _currentPosition = Position(
-            latitude: locationData['latitude'],
-            longitude: locationData['longitude'],
-            timestamp: DateTime.now(),
-            accuracy: locationData['accuracy'] ?? 0.0,
-            altitude: 0.0,
-            heading: 0.0,
-            speed: 0.0,
-            speedAccuracy: 0.0,
-            altitudeAccuracy: 0.0,
-            headingAccuracy: 0.0,
-          );
-        }
+        // Não carrega localização atual - permite escolha livre
       });
-
-      // Encontra setor atual
-      if (_currentPosition != null) {
-        final containingSetores = SetorLocationService.findSetoresContainingPoint(
-          _currentPosition!.latitude,
-          _currentPosition!.longitude,
-          _setores,
-        );
-        
-        if (containingSetores.isNotEmpty) {
-          setState(() {
-            _selectedSetor = containingSetores.first;
-          });
-        }
-      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Erro ao carregar dados: $e';
@@ -110,13 +78,21 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
       return;
     }
 
+    if (_selectedSetor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione um setor primeiro'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     try {
       await OcorrenciaService.createOcorrencia(
         assunto: 'Ocorrência com área desenhada',
         descricao: 'Ocorrência criada com polígono desenhado no mapa',
         setorId: _selectedSetor?.id,
-        latitude: _currentPosition?.latitude,
-        longitude: _currentPosition?.longitude,
         poligono: _selectedPolygon,
       );
 
@@ -187,44 +163,19 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
                 )
               : Column(
                   children: [
-                    // Informações do setor atual
-                    if (_selectedSetor != null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        color: Colors.blue.shade50,
-                        child: Row(
-                          children: [
-                            Icon(Icons.location_city, color: Colors.blue.shade700),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Setor Atual: ${_selectedSetor!.nome}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue.shade700,
-                                    ),
-                                  ),
-                                  if (_selectedSetor!.raio != null)
-                                    Text(
-                                      'Raio: ${_selectedSetor!.raio!.toStringAsFixed(0)}m',
-                                      style: TextStyle(color: Colors.blue.shade600),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    // Seletor de setores
+                    SetorSelectorWidget(
+                      setores: _setores,
+                      selectedSetor: _selectedSetor,
+                      onSetorChanged: _onSetorSelected,
+                      showSetores: true,
+                    ),
 
                     // Mapa interativo
                     Expanded(
                       child: RobustMapWidget(
                         setores: _setores,
-                        currentPosition: _currentPosition,
+                        currentPosition: null, // Não usa localização atual
                         initialPolygon: _selectedPolygon,
                         onPolygonChanged: _onPolygonChanged,
                         onSetorSelected: _onSetorSelected,
