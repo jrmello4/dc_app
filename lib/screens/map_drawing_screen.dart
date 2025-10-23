@@ -1,8 +1,10 @@
 // lib/screens/map_drawing_screen.dart
 
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
+import 'package:dc_app/services/location_service.dart';
 import 'package:dc_app/services/setor_location_service.dart';
 import 'package:dc_app/widgets/robust_map_widget.dart';
 import 'package:dc_app/widgets/setor_selector_widget.dart';
@@ -19,6 +21,7 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
   List<Setor> _setores = [];
   List<List<double>> _selectedPolygon = [];
   Setor? _selectedSetor;
+  Position? _currentPosition;
   bool _isLoading = true;
   String? _errorMessage;
   bool _showSetores = true;
@@ -40,9 +43,25 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
       // Carrega dados de criação (setores)
       final creationData = await OcorrenciaService.getCreationData();
       
+      // Obtém localização atual para centralizar o mapa
+      final locationData = await LocationService.getCurrentLocationOnly();
+      
       setState(() {
         _setores = creationData.setores;
-        // Não carrega localização atual - permite escolha livre
+        if (locationData != null) {
+          _currentPosition = Position(
+            latitude: locationData['latitude'],
+            longitude: locationData['longitude'],
+            timestamp: DateTime.now(),
+            accuracy: locationData['accuracy'] ?? 0.0,
+            altitude: 0.0,
+            heading: 0.0,
+            speed: 0.0,
+            speedAccuracy: 0.0,
+            altitudeAccuracy: 0.0,
+            headingAccuracy: 0.0,
+          );
+        }
       });
     } catch (e) {
       setState(() {
@@ -89,10 +108,16 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
     }
 
     try {
+      // Calcula informações da área desenhada
+      final area = _calculatePolygonArea(_selectedPolygon);
+      final perimeter = _calculatePolygonPerimeter(_selectedPolygon);
+      
       await OcorrenciaService.createOcorrencia(
         assunto: 'Ocorrência com área desenhada',
-        descricao: 'Ocorrência criada com polígono desenhado no mapa',
+        descricao: 'Ocorrência criada com polígono desenhado no mapa. Área: ${area.toStringAsFixed(2)} m², Perímetro: ${perimeter.toStringAsFixed(2)} m',
         setorId: _selectedSetor?.id,
+        latitude: _currentPosition?.latitude,
+        longitude: _currentPosition?.longitude,
         poligono: _selectedPolygon,
       );
 
@@ -113,6 +138,39 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
         ),
       );
     }
+  }
+
+  double _calculatePolygonArea(List<List<double>> polygon) {
+    if (polygon.length < 3) return 0.0;
+    
+    double area = 0.0;
+    for (int i = 0; i < polygon.length; i++) {
+      int j = (i + 1) % polygon.length;
+      area += polygon[i][0] * polygon[j][1];
+      area -= polygon[j][0] * polygon[i][1];
+    }
+    return (area.abs() / 2) * 111320 * 111320; // Aproximação para metros quadrados
+  }
+
+  double _calculatePolygonPerimeter(List<List<double>> polygon) {
+    if (polygon.length < 2) return 0.0;
+    
+    double perimeter = 0.0;
+    for (int i = 0; i < polygon.length; i++) {
+      int j = (i + 1) % polygon.length;
+      double lat1 = polygon[i][0] * 3.14159265359 / 180;
+      double lat2 = polygon[j][0] * 3.14159265359 / 180;
+      double dLat = (polygon[j][0] - polygon[i][0]) * 3.14159265359 / 180;
+      double dLng = (polygon[j][1] - polygon[i][1]) * 3.14159265359 / 180;
+      
+      double a = sin(dLat / 2) * sin(dLat / 2) +
+                 cos(lat1) * cos(lat2) *
+                 sin(dLng / 2) * sin(dLng / 2);
+      double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+      
+      perimeter += 6371000 * c; // Raio da Terra em metros
+    }
+    return perimeter;
   }
 
   @override

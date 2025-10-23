@@ -10,7 +10,7 @@ import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
 import 'package:dc_app/widgets/autocomplete_field.dart';
 import 'package:dc_app/models/setor.dart';
-import 'package:dc_app/widgets/mini_map_widget.dart';
+import 'package:dc_app/screens/map_drawing_screen.dart';
 
 class CreateOcorrenciaScreen extends StatefulWidget {
   const CreateOcorrenciaScreen({super.key});
@@ -38,10 +38,9 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
   final _locationController = TextEditingController();
   Position? _currentPosition;
   
-  // Variáveis para polígonos desenhados (múltiplos)
-  List<List<List<double>>> _drawnPolygons = [];
-  List<List<double>> _currentPolygon = [];
-  bool _isDraft = false;
+  // Variáveis para polígono desenhado
+  List<List<double>> _drawnPolygon = [];
+  bool _hasDrawnArea = false;
 
   late Future<OcorrenciaCreationData> _creationDataFuture;
 
@@ -146,7 +145,7 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
         imagens: _images,
         latitude: _currentPosition?.latitude,
         longitude: _currentPosition?.longitude,
-        poligono: _drawnPolygons.isNotEmpty ? _drawnPolygons.first : null,
+        poligono: _hasDrawnArea ? _drawnPolygon : null,
       );
       _showSuccess('Ocorrência registrada com sucesso!');
       if (mounted) Navigator.of(context).pop(true); // Retorna true para a tela anterior saber que algo foi criado
@@ -180,43 +179,19 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
     ));
   }
 
-  void _onPolygonChanged(List<List<double>> polygon) {
-    setState(() {
-      _currentPolygon = polygon;
-    });
-  }
-
-  void _addCurrentPolygon() {
-    if (_currentPolygon.isNotEmpty) {
+  Future<void> _openMapDrawing() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const MapDrawingScreen(),
+      ),
+    );
+    
+    if (result == true && mounted) {
+      // O usuário desenhou uma área no mapa
       setState(() {
-        _drawnPolygons.add(List.from(_currentPolygon));
-        _currentPolygon.clear();
-        _isDraft = true;
+        _hasDrawnArea = true;
       });
-      _showSuccess('Área adicionada! Você pode desenhar mais áreas ou salvar o rascunho.');
-    }
-  }
-
-  void _removePolygon(int index) {
-    setState(() {
-      _drawnPolygons.removeAt(index);
-      if (_drawnPolygons.isEmpty) {
-        _isDraft = false;
-      }
-    });
-  }
-
-  void _saveDraft() async {
-    if (_drawnPolygons.isEmpty) {
-      _showError('Adicione pelo menos uma área antes de salvar o rascunho.');
-      return;
-    }
-
-    try {
-      // Aqui você pode implementar a lógica para salvar como rascunho
-      _showSuccess('Rascunho salvo com ${_drawnPolygons.length} área(s)!');
-    } catch (e) {
-      _showError('Erro ao salvar rascunho: $e');
+      _showSuccess('Área desenhada com sucesso!');
     }
   }
 
@@ -427,7 +402,7 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
     );
   }
 
-  // Widget para o mini mapa integrado
+  // Widget para o campo de localização
   Widget _buildLocationField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -450,92 +425,88 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
         
         const SizedBox(height: 12),
         
-        // Mini mapa
-        MiniMapWidget(
-          currentPosition: _currentPosition,
-          initialPolygon: _currentPolygon.isNotEmpty ? _currentPolygon : null,
-          onPolygonChanged: _onPolygonChanged,
-          allowDrawing: true,
-          height: 300,
-        ),
-        
-        const SizedBox(height: 12),
-        
-        // Controles do mapa
+        // Botão para obter localização atual
         Row(
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: _currentPolygon.isNotEmpty ? _addCurrentPolygon : null,
-                icon: const Icon(Icons.add),
-                label: const Text('Adicionar Área'),
+                onPressed: _isGettingLocation ? null : _getCurrentLocation,
+                icon: _isGettingLocation 
+                  ? const SizedBox(
+                      width: 16, 
+                      height: 16, 
+                      child: CircularProgressIndicator(strokeWidth: 2)
+                    )
+                  : const Icon(Icons.my_location),
+                label: Text(_isGettingLocation ? 'Obtendo...' : 'Obter Minha Localização'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            ElevatedButton.icon(
-              onPressed: _isDraft ? _saveDraft : null,
-              icon: const Icon(Icons.save),
-              label: const Text('Salvar Rascunho'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _openMapDrawing,
+                icon: const Icon(Icons.map),
+                label: Text(_hasDrawnArea ? 'Editar Área' : 'Desenhar Área'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _hasDrawnArea ? Colors.green : Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
               ),
             ),
           ],
         ),
         
-        // Lista de áreas desenhadas
-        if (_drawnPolygons.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(
-            'Áreas Desenhadas (${_drawnPolygons.length})',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...List.generate(_drawnPolygons.length, (index) {
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.blue.shade100,
-                  child: Text('${index + 1}'),
-                ),
-                title: Text('Área ${index + 1}'),
-                subtitle: Text('${_drawnPolygons[index].length} pontos'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _removePolygon(index),
-                ),
-              ),
-            );
-          }),
-        ],
-        
-        // Status do rascunho
-        if (_isDraft) ...[
+        // Status da localização
+        if (_currentPosition != null) ...[
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              border: Border.all(color: Colors.orange.shade200),
+              color: Colors.blue.shade50,
+              border: Border.all(color: Colors.blue.shade200),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
-                Icon(Icons.edit, color: Colors.orange.shade600, size: 16),
+                Icon(Icons.check_circle, color: Colors.blue.shade600, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Rascunho salvo com ${_drawnPolygons.length} área(s)',
+                    'Localização obtida: ${_currentPosition!.latitude.toStringAsFixed(6)}, ${_currentPosition!.longitude.toStringAsFixed(6)}',
                     style: TextStyle(
-                      color: Colors.orange.shade700,
+                      color: Colors.blue.shade700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        
+        // Status da área desenhada
+        if (_hasDrawnArea) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              border: Border.all(color: Colors.green.shade200),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green.shade600, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Área desenhada com ${_drawnPolygon.length} pontos',
+                    style: TextStyle(
+                      color: Colors.green.shade700,
                       fontSize: 12,
                     ),
                   ),
