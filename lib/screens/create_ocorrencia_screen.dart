@@ -8,6 +8,7 @@ import 'package:dc_app/services/auth_service.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
 import 'package:dc_app/widgets/autocomplete_field.dart';
+import 'package:dc_app/models/setor.dart';
 
 class CreateOcorrenciaScreen extends StatefulWidget {
   const CreateOcorrenciaScreen({super.key});
@@ -216,9 +217,9 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
                   prefixIcon: Icons.notification_important_outlined,
                   validator: (v) => v == null ? 'Selecione a prioridade.' : null,
                 ),
-                _buildDropdown(
+                _buildSetorDropdown(
                   label: 'Setor de Destino',
-                  items: data.setores,
+                  setores: data.setores,
                   selectedValue: _selectedSetorId,
                   onChanged: (value) => setState(() => _selectedSetorId = value),
                   prefixIcon: Icons.group_work_outlined,
@@ -280,6 +281,23 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
         value: selectedValue,
         decoration: InputDecoration(labelText: label, prefixIcon: Icon(prefixIcon)),
         items: items.map((item) => DropdownMenuItem<int>(value: item.id, child: Text(item.nome, overflow: TextOverflow.ellipsis))).toList(),
+        onChanged: onChanged,
+        validator: validator,
+        isExpanded: true,
+      ),
+    );
+  }
+
+  Widget _buildSetorDropdown({ required String label, required List<Setor> setores, required int? selectedValue, required ValueChanged<int?> onChanged, required IconData prefixIcon, required FormFieldValidator<int> validator, }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: DropdownButtonFormField<int>(
+        value: selectedValue,
+        decoration: InputDecoration(labelText: label, prefixIcon: Icon(prefixIcon)),
+        items: setores.map((setor) => DropdownMenuItem<int>(
+          value: setor.id, 
+          child: Text(setor.nome, overflow: TextOverflow.ellipsis)
+        )).toList(),
         onChanged: onChanged,
         validator: validator,
         isExpanded: true,

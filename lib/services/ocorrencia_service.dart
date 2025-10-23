@@ -1,4 +1,4 @@
-'''// lib/services/ocorrencia_service.dart
+// lib/services/ocorrencia_service.dart
 
 import 'dart:convert';
 import 'dart:io';
@@ -170,6 +170,20 @@ class OcorrenciaService {
     }
     return [];
   }
+
+  static Future<List<Ocorrencia>> getAssignedOcorrencias() async {
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
+    
+    final url = Uri.parse('${ApiConfig.baseUrl}/chamado/atribuidas/usuario/listar/');
+    final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+    
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+      return data.map((json) => Ocorrencia.fromJson(json)).toList();
+    }
+    return [];
+  }
   
   static Future<Ocorrencia> getOcorrenciaDetails(int ocorrenciaId) async {
     final token = AuthService.token;
@@ -234,5 +248,17 @@ class OcorrenciaService {
         body: json.encode({'nota': nota, 'descricao': comentario}));
     if (response.statusCode >= 300) throw OcorrenciaException('Falha ao enviar avaliação.');
   }
+
+  static Future<void> addImage(int ocorrenciaId, File image) async {
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
+    final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/imagem/add/');
+    var request = http.MultipartRequest('POST', url);
+    request.headers['Authorization'] = 'Token $token';
+    request.files.add(await http.MultipartFile.fromPath('imagem', image.path));
+    final response = await request.send();
+    if (response.statusCode != 201) {
+      throw OcorrenciaException('Falha ao enviar imagem.');
+    }
+  }
 }
-''
