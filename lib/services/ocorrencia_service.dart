@@ -128,11 +128,13 @@ class OcorrenciaService {
       print('🗺️ Setor no mapa: ${mapData['setor']}');
     }
     
-    // Prepara dados do polígono para o backend
+    // Prepara dados do polígono para o backend (formato correto)
     List<Map<String, dynamic>> poligonoData = [];
     if (poligono != null && poligono.isNotEmpty) {
       poligonoData.add({
-        'nome': 'Área desenhada - ${DateTime.now().toString().substring(0, 19)}',
+        'usuario': userId,
+        'usuario_nome': ' ', // Nome do usuário (será preenchido pelo backend)
+        'nome': '${DateTime.now().millisecondsSinceEpoch} - ${assunto}', // Nome único
         'geom': {
           'type': 'Polygon',
           'coordinates': [poligono.map((point) => [point[1], point[0]]).toList()] // GeoJSON format: [lng, lat]
@@ -140,11 +142,13 @@ class OcorrenciaService {
       });
     }
 
-    // Prepara dados do ponto central
+    // Prepara dados do ponto central (formato correto)
     List<Map<String, dynamic>> pontoData = [];
     if (latitude != null && longitude != null) {
       pontoData.add({
-        'nome': 'Ponto central - ${DateTime.now().toString().substring(0, 19)}',
+        'usuario': userId,
+        'usuario_nome': ' ', // Nome do usuário (será preenchido pelo backend)
+        'nome': '${DateTime.now().millisecondsSinceEpoch} - Ponto central',
         'geom': {
           'type': 'Point',
           'coordinates': [longitude, latitude] // GeoJSON format: [lng, lat]
