@@ -83,7 +83,6 @@ class Ocorrencia {
     
     if (json['poligono'] is List && (json['poligono'] as List).isNotEmpty) {
       poligonosData = (json['poligono'] as List).cast<Map<String, dynamic>>();
-      print('🔍 Debug - Polígonos processados: ${poligonosData.length}');
     }
     
     if (json['ponto'] is List && (json['ponto'] as List).isNotEmpty) {

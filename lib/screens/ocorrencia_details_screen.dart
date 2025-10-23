@@ -272,17 +272,6 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
                     Text('Área da Ocorrência', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     OcorrenciaMapWidget(ocorrencia: ocorrencia, height: 250),
-                  ] else ...[
-                    // Debug: mostrar informações sobre dados geográficos
-                    const SizedBox(height: 16),
-                    const Divider(height: 24, thickness: 1),
-                    Text('Debug - Dados Geográficos', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text('Polígonos: ${ocorrencia.poligonos?.length ?? 'null'}'),
-                    Text('Pontos: ${ocorrencia.pontos?.length ?? 'null'}'),
-                    Text('Latitude: ${ocorrencia.latitude ?? 'null'}'),
-                    Text('Longitude: ${ocorrencia.longitude ?? 'null'}'),
-                    Text('ID da Ocorrência: ${ocorrencia.id}'),
                   ],
           ],
         ),
