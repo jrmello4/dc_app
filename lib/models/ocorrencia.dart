@@ -21,6 +21,12 @@ class Ocorrencia {
   final String? solicitanteNome;
   final String? responsavelNome;
   final int? solicitanteId;
+  
+  // Campos para dados geográficos
+  final List<Map<String, dynamic>>? poligonos;
+  final List<Map<String, dynamic>>? pontos;
+  final double? latitude;
+  final double? longitude;
 
   Ocorrencia({
     required this.id,
@@ -38,6 +44,10 @@ class Ocorrencia {
     this.solicitanteNome,
     this.responsavelNome,
     this.solicitanteId,
+    this.poligonos,
+    this.pontos,
+    this.latitude,
+    this.longitude,
   });
 
   factory Ocorrencia.fromJson(Map<String, dynamic> json) {
@@ -63,6 +73,28 @@ class Ocorrencia {
       mensagensAninhadas = (json['mensagem'] as List)
           .map((msgJson) => Mensagem.fromJson(msgJson))
           .toList();
+    }
+
+    // Lógica para ler dados geográficos
+    List<Map<String, dynamic>>? poligonosData;
+    List<Map<String, dynamic>>? pontosData;
+    double? lat;
+    double? lng;
+    
+    if (json['poligono'] is List && (json['poligono'] as List).isNotEmpty) {
+      poligonosData = (json['poligono'] as List).cast<Map<String, dynamic>>();
+    }
+    
+    if (json['ponto'] is List && (json['ponto'] as List).isNotEmpty) {
+      pontosData = (json['ponto'] as List).cast<Map<String, dynamic>>();
+      // Extrai latitude e longitude do primeiro ponto
+      if (pontosData.isNotEmpty && pontosData.first['geom'] != null) {
+        final coords = pontosData.first['geom']['coordinates'] as List?;
+        if (coords != null && coords.length >= 2) {
+          lng = coords[0].toDouble();
+          lat = coords[1].toDouble();
+        }
+      }
     }
 
     int? finalSolicitanteId;
@@ -95,6 +127,10 @@ class Ocorrencia {
       solicitanteId: finalSolicitanteId,
       solicitanteNome: json['usuario_nome'] as String?,
       responsavelNome: PackageUtils.getNameFromJson(json['responsavel']) ?? (json['responsavel_nome'] as String?),
+      poligonos: poligonosData,
+      pontos: pontosData,
+      latitude: lat,
+      longitude: lng,
     );
   }
 }

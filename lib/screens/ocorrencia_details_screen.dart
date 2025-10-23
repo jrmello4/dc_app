@@ -13,6 +13,7 @@ import 'package:dc_app/services/status_ocorrencia_service.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/print_service.dart';
 import 'package:dc_app/widgets/mensagem_widget.dart';
+import 'package:dc_app/widgets/ocorrencia_map_widget.dart';
 
 class OcorrenciaDetailsScreen extends StatefulWidget {
   final int ocorrenciaId;
@@ -263,6 +264,15 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
             if (isClosed) _buildDetailRow('Encerrada em', _formatDateTime(ocorrencia.dataFim), theme),
             const Divider(height: 24, thickness: 1),
             Text(ocorrencia.descricao, style: theme.textTheme.bodyMedium),
+            
+            // Mapa com área desenhada (se houver dados geográficos)
+            if (ocorrencia.poligonos != null && ocorrencia.poligonos!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Divider(height: 24, thickness: 1),
+              Text('Área da Ocorrência', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              OcorrenciaMapWidget(ocorrencia: ocorrencia, height: 250),
+            ],
           ],
         ),
       ),
