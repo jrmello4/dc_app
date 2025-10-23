@@ -81,8 +81,34 @@ class Ocorrencia {
     double? lat;
     double? lng;
     
+    // Debug: mostrar estrutura completa do JSON
+    print('🔍 Debug - JSON completo recebido:');
+    print('   - Chaves disponíveis: ${json.keys.join(', ')}');
+    print('   - poligono presente: ${json.containsKey('poligono')}');
+    print('   - ponto presente: ${json.containsKey('ponto')}');
+    if (json['poligono'] != null) {
+      print('   - poligono tipo: ${json['poligono'].runtimeType}');
+      if (json['poligono'] is List) {
+        print('   - poligono length: ${(json['poligono'] as List).length}');
+      }
+    }
+    
     if (json['poligono'] is List && (json['poligono'] as List).isNotEmpty) {
       poligonosData = (json['poligono'] as List).cast<Map<String, dynamic>>();
+      print('🔍 Debug - Estrutura dos polígonos:');
+      for (int i = 0; i < poligonosData.length; i++) {
+        print('   Polígono $i: ${poligonosData[i].keys.join(', ')}');
+        if (poligonosData[i]['geom'] != null) {
+          print('   - geom: ${poligonosData[i]['geom'].keys.join(', ')}');
+          if (poligonosData[i]['geom']['coordinates'] != null) {
+            final coords = poligonosData[i]['geom']['coordinates'] as List;
+            print('   - coordinates: ${coords.length} anéis');
+            if (coords.isNotEmpty && coords.first is List) {
+              print('   - primeiro anel: ${(coords.first as List).length} pontos');
+            }
+          }
+        }
+      }
     }
     
     if (json['ponto'] is List && (json['ponto'] as List).isNotEmpty) {
