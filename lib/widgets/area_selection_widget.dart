@@ -61,6 +61,8 @@ class _AreaSelectionWidgetState extends State<AreaSelectionWidget> {
           heading: 0.0,
           speed: 0.0,
           speedAccuracy: 0.0,
+          altitudeAccuracy: 0.0,
+          headingAccuracy: 0.0,
         );
 
         setState(() {

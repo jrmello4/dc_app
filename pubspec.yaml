@@ -59,6 +59,9 @@ dependencies:
   geolocator: ^10.1.0
   geocoding: ^2.1.1
 
+  # Para exibir mapas interativos
+  webview_flutter: ^4.4.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

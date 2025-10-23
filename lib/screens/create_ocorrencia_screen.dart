@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:logger/logger.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:dc_app/services/auth_service.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
@@ -35,6 +36,7 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
   bool _isGettingLocation = false;
   final _areaController = TextEditingController();
   final _locationController = TextEditingController();
+  Position? _currentPosition;
   
   // Variáveis para polígono desenhado
   List<List<double>> _drawnPolygon = [];
@@ -85,6 +87,18 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
         setState(() {
           _currentLocation = locationData['address'];
           _locationController.text = locationData['address'];
+          _currentPosition = Position(
+            latitude: locationData['latitude'],
+            longitude: locationData['longitude'],
+            timestamp: DateTime.now(),
+            accuracy: locationData['accuracy'] ?? 0.0,
+            altitude: 0.0,
+            heading: 0.0,
+            speed: 0.0,
+            speedAccuracy: 0.0,
+            altitudeAccuracy: 0.0,
+            headingAccuracy: 0.0,
+          );
         });
         
         _logger.i('Localização obtida: ${locationData['address']}');

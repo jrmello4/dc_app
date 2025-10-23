@@ -56,6 +56,8 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
             heading: 0.0,
             speed: 0.0,
             speedAccuracy: 0.0,
+            altitudeAccuracy: 0.0,
+            headingAccuracy: 0.0,
           );
         }
       });
@@ -360,7 +362,7 @@ class _InfoCard extends StatelessWidget {
             title,
             style: TextStyle(
               fontSize: 12,
-              color: color.shade700,
+              color: color.withOpacity(0.8),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -369,7 +371,7 @@ class _InfoCard extends StatelessWidget {
             value,
             style: TextStyle(
               fontSize: 14,
-              color: color.shade800,
+              color: color.withOpacity(0.9),
               fontWeight: FontWeight.bold,
             ),
           ),
