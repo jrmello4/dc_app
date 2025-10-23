@@ -9,6 +9,7 @@ import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
 import 'package:dc_app/widgets/autocomplete_field.dart';
 import 'package:dc_app/models/setor.dart';
+import 'package:dc_app/screens/map_drawing_screen.dart';
 
 class CreateOcorrenciaScreen extends StatefulWidget {
   const CreateOcorrenciaScreen({super.key});
@@ -34,6 +35,10 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
   bool _isGettingLocation = false;
   final _areaController = TextEditingController();
   final _locationController = TextEditingController();
+  
+  // Variáveis para polígono desenhado
+  List<List<double>> _drawnPolygon = [];
+  bool _hasDrawnArea = false;
 
   late Future<OcorrenciaCreationData> _creationDataFuture;
 
@@ -126,6 +131,9 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
         setorId: _selectedSetorId,
         tipoOcorrenciaId: _selectedTipoOcorrenciaId,
         imagens: _images,
+        latitude: _currentPosition?.latitude,
+        longitude: _currentPosition?.longitude,
+        poligono: _hasDrawnArea ? _drawnPolygon : null,
       );
       _showSuccess('Ocorrência registrada com sucesso!');
       if (mounted) Navigator.of(context).pop(true); // Retorna true para a tela anterior saber que algo foi criado
@@ -157,6 +165,22 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
       content: Text(message),
       backgroundColor: Colors.green,
     ));
+  }
+
+  Future<void> _openMapDrawing() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const MapDrawingScreen(),
+      ),
+    );
+    
+    if (result == true && mounted) {
+      // O usuário desenhou uma área no mapa
+      setState(() {
+        _hasDrawnArea = true;
+      });
+      _showSuccess('Área desenhada com sucesso!');
+    }
   }
 
   @override
@@ -414,6 +438,23 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
               ),
             ),
           ],
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Botão para desenhar área no mapa
+        Container(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _openMapDrawing,
+            icon: const Icon(Icons.map),
+            label: Text(_hasDrawnArea ? 'Área Desenhada - Clique para Editar' : 'Desenhar Área no Mapa'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _hasDrawnArea ? Colors.green : Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
         ),
         
         if (_currentLocation != null) ...[
