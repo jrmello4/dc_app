@@ -5,7 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
 import 'package:dc_app/services/setor_location_service.dart';
-import 'package:dc_app/widgets/leaflet_map_widget.dart';
+import 'package:dc_app/widgets/robust_map_widget.dart';
 import 'package:dc_app/models/setor.dart';
 
 class MapDrawingScreen extends StatefulWidget {
@@ -41,8 +41,8 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
       // Carrega dados de criação (setores)
       final creationData = await OcorrenciaService.getCreationData();
       
-      // Obtém localização atual
-      final locationData = await LocationService.getCurrentLocationWithAddress();
+      // Obtém localização atual (método otimizado)
+      final locationData = await LocationService.getCurrentLocationOnly();
       
       setState(() {
         _setores = creationData.setores;
@@ -222,7 +222,7 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
 
                     // Mapa interativo
                     Expanded(
-                      child: LeafletMapWidget(
+                      child: RobustMapWidget(
                         setores: _setores,
                         currentPosition: _currentPosition,
                         initialPolygon: _selectedPolygon,
@@ -230,7 +230,6 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
                         onSetorSelected: _onSetorSelected,
                         showSetores: _showSetores,
                         allowDrawing: _allowDrawing,
-                        showControls: true,
                       ),
                     ),
 

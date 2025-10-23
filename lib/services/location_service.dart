@@ -63,10 +63,20 @@ class LocationService {
     }
   }
 
-  /// Converte coordenadas em endereço
+  /// Converte coordenadas em endereço com timeout e fallback
   static Future<String?> getAddressFromCoordinates(double latitude, double longitude) async {
     try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
+      // Timeout mais curto para evitar travamentos
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        latitude, 
+        longitude,
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          _logger.w('Timeout ao obter endereço - usando coordenadas');
+          return <Placemark>[];
+        },
+      );
       
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
@@ -103,7 +113,7 @@ class LocationService {
     }
   }
 
-  /// Obtém localização atual com endereço
+  /// Obtém localização atual com endereço (otimizado)
   static Future<Map<String, dynamic>?> getCurrentLocationWithAddress() async {
     try {
       Position? position = await getCurrentLocation();
@@ -111,17 +121,44 @@ class LocationService {
         return null;
       }
 
-      String? address = await getAddressFromCoordinates(position.latitude, position.longitude);
+      // Tenta obter endereço, mas não bloqueia se falhar
+      String? address;
+      try {
+        address = await getAddressFromCoordinates(position.latitude, position.longitude);
+      } catch (e) {
+        _logger.w('Falha ao obter endereço, usando coordenadas: $e');
+      }
       
       return {
         'latitude': position.latitude,
         'longitude': position.longitude,
-        'address': address ?? 'Endereço não disponível',
+        'address': address ?? 'Lat: ${position.latitude.toStringAsFixed(6)}, Lon: ${position.longitude.toStringAsFixed(6)}',
         'accuracy': position.accuracy,
         'timestamp': position.timestamp,
       };
     } catch (e) {
       _logger.e('Erro ao obter localização com endereço', error: e);
+      return null;
+    }
+  }
+
+  /// Obtém apenas localização sem tentar obter endereço (mais rápido)
+  static Future<Map<String, dynamic>?> getCurrentLocationOnly() async {
+    try {
+      Position? position = await getCurrentLocation();
+      if (position == null) {
+        return null;
+      }
+      
+      return {
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'address': 'Lat: ${position.latitude.toStringAsFixed(6)}, Lon: ${position.longitude.toStringAsFixed(6)}',
+        'accuracy': position.accuracy,
+        'timestamp': position.timestamp,
+      };
+    } catch (e) {
+      _logger.e('Erro ao obter localização', error: e);
       return null;
     }
   }
