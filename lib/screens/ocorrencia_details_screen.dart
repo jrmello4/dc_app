@@ -265,6 +265,17 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
             const Divider(height: 24, thickness: 1),
             Text(ocorrencia.descricao, style: theme.textTheme.bodyMedium),
             
+                  // Debug: verificar dados geográficos
+                  const SizedBox(height: 16),
+                  const Divider(height: 24, thickness: 1),
+                  Text('Debug - Dados Geográficos', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('Polígonos: ${ocorrencia.poligonos?.length ?? 'null'}'),
+                  Text('Pontos: ${ocorrencia.pontos?.length ?? 'null'}'),
+                  Text('Latitude: ${ocorrencia.latitude ?? 'null'}'),
+                  Text('Longitude: ${ocorrencia.longitude ?? 'null'}'),
+                  Text('ID da Ocorrência: ${ocorrencia.id}'),
+                  
                   // Mapa com área desenhada (se houver dados geográficos)
                   if (ocorrencia.poligonos != null && ocorrencia.poligonos!.isNotEmpty) ...[
                     const SizedBox(height: 16),

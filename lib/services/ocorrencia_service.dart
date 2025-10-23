@@ -159,6 +159,20 @@ class OcorrenciaService {
     }
     if (poligonoData.isNotEmpty) {
       print('🗺️ Polígono: ${json.encode(poligonoData)}');
+      print('🗺️ Estrutura do polígono:');
+      for (int i = 0; i < poligonoData.length; i++) {
+        print('   Polígono $i: ${poligonoData[i].keys.join(', ')}');
+        if (poligonoData[i]['geom'] != null) {
+          print('   - geom: ${poligonoData[i]['geom'].keys.join(', ')}');
+          if (poligonoData[i]['geom']['coordinates'] != null) {
+            final coords = poligonoData[i]['geom']['coordinates'] as List;
+            print('   - coordinates: ${coords.length} anéis');
+            if (coords.isNotEmpty && coords.first is List) {
+              print('   - primeiro anel: ${(coords.first as List).length} pontos');
+            }
+          }
+        }
+      }
     }
 
     request.fields.addAll({

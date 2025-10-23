@@ -82,7 +82,7 @@ class Ocorrencia {
     double? lng;
     
     // Debug: mostrar estrutura completa do JSON
-    print('🔍 Debug - JSON completo recebido:');
+    print('🔍 Debug - JSON completo recebido (ID: ${json['id']}):');
     print('   - Chaves disponíveis: ${json.keys.join(', ')}');
     print('   - poligono presente: ${json.containsKey('poligono')}');
     print('   - ponto presente: ${json.containsKey('ponto')}');
@@ -90,6 +90,9 @@ class Ocorrencia {
       print('   - poligono tipo: ${json['poligono'].runtimeType}');
       if (json['poligono'] is List) {
         print('   - poligono length: ${(json['poligono'] as List).length}');
+        if ((json['poligono'] as List).isNotEmpty) {
+          print('   - primeiro polígono: ${(json['poligono'] as List).first.keys.join(', ')}');
+        }
       }
     }
     
