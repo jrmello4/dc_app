@@ -112,7 +112,9 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
       _logger.e('Erro ao obter localização', error: e);
       _showError('Erro ao obter localização: ${e.toString()}');
     } finally {
-      setState(() => _isGettingLocation = false);
+      if (mounted) {
+        setState(() => _isGettingLocation = false);
+      }
     }
   }
 
