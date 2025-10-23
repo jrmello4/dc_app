@@ -7,8 +7,6 @@ import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
 import 'package:dc_app/services/setor_location_service.dart';
 import 'package:dc_app/widgets/native_map_widget.dart';
-import 'package:dc_app/widgets/setor_selector_widget.dart';
-import 'package:dc_app/models/setor.dart';
 
 class MapDrawingScreen extends StatefulWidget {
   const MapDrawingScreen({Key? key}) : super(key: key);
@@ -18,13 +16,10 @@ class MapDrawingScreen extends StatefulWidget {
 }
 
 class _MapDrawingScreenState extends State<MapDrawingScreen> {
-  List<Setor> _setores = [];
   List<List<double>> _selectedPolygon = [];
-  Setor? _selectedSetor;
   Position? _currentPosition;
   bool _isLoading = true;
   String? _errorMessage;
-  bool _showSetores = true;
   bool _allowDrawing = true;
 
   @override
@@ -40,15 +35,8 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
     });
 
     try {
-      // Carrega dados de criação (setores)
-      final creationData = await OcorrenciaService.getCreationData();
-      
       // Obtém localização atual automaticamente
       await _getCurrentLocation();
-      
-      setState(() {
-        _setores = creationData.setores;
-      });
     } catch (e) {
       setState(() {
         _errorMessage = 'Erro ao carregar dados: $e';
@@ -108,11 +96,6 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
     });
   }
 
-  void _onSetorSelected(Setor? setor) {
-    setState(() {
-      _selectedSetor = setor;
-    });
-  }
 
   void _saveOcorrencia() async {
     if (_selectedPolygon.isEmpty) {
@@ -125,35 +108,19 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
       return;
     }
 
-    if (_selectedSetor == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecione um setor primeiro'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
 
     try {
       // Calcula informações da área desenhada
       final area = _calculatePolygonArea(_selectedPolygon);
       final perimeter = _calculatePolygonPerimeter(_selectedPolygon);
       
-      // Cria dados completos do mapa com triangulações
+      // Cria dados completos do mapa
       final mapData = {
         'center': {
           'lat': _currentPosition?.latitude ?? -26.3726761,
           'lng': _currentPosition?.longitude ?? -48.7233351,
         },
         'polygon': _selectedPolygon,
-        'setor': {
-          'id': _selectedSetor!.id,
-          'nome': _selectedSetor!.nome,
-          'lat': _selectedSetor!.latitude ?? _currentPosition?.latitude ?? -26.3726761,
-          'lng': _selectedSetor!.longitude ?? _currentPosition?.longitude ?? -48.7233351,
-          'raio': _selectedSetor!.raio ?? 500,
-        },
         'area': area,
         'perimeter': perimeter,
         'timestamp': DateTime.now().toIso8601String(),
@@ -164,12 +131,10 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
       print('🗺️ Polígono: ${_selectedPolygon.length} pontos');
       print('📊 Área: ${area.toStringAsFixed(2)} m²');
       print('📏 Perímetro: ${perimeter.toStringAsFixed(2)} m');
-      print('🏢 Setor: ${_selectedSetor!.nome} (ID: ${_selectedSetor!.id})');
       
       await OcorrenciaService.createOcorrencia(
         assunto: 'Ocorrência com área desenhada',
-        descricao: 'Ocorrência criada com polígono desenhado no mapa. Área: ${area.toStringAsFixed(2)} m², Perímetro: ${perimeter.toStringAsFixed(2)} m. Setor: ${_selectedSetor!.nome}',
-        setorId: _selectedSetor?.id,
+        descricao: 'Ocorrência criada com polígono desenhado no mapa. Área: ${area.toStringAsFixed(2)} m², Perímetro: ${perimeter.toStringAsFixed(2)} m.',
         latitude: _currentPosition?.latitude,
         longitude: _currentPosition?.longitude,
         poligono: _selectedPolygon,
@@ -243,11 +208,6 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Atualizar dados',
           ),
-          IconButton(
-            onPressed: _showSetores ? () => setState(() => _showSetores = false) : () => setState(() => _showSetores = true),
-            icon: Icon(_showSetores ? Icons.visibility_off : Icons.visibility),
-            tooltip: _showSetores ? 'Ocultar setores' : 'Mostrar setores',
-          ),
         ],
       ),
       body: _isLoading
@@ -278,23 +238,13 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
                 )
               : Column(
                   children: [
-                    // Seletor de setores
-                    SetorSelectorWidget(
-                      setores: _setores,
-                      selectedSetor: _selectedSetor,
-                      onSetorChanged: _onSetorSelected,
-                      showSetores: true,
-                    ),
 
                     // Mapa interativo
         Expanded(
           child: NativeMapWidget(
-            setores: _setores,
             currentPosition: _currentPosition,
             initialPolygon: _selectedPolygon,
             onPolygonChanged: _onPolygonChanged,
-            onSetorSelected: _onSetorSelected,
-            showSetores: _showSetores,
             allowDrawing: _allowDrawing,
           ),
         ),

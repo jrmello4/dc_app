@@ -85,7 +85,7 @@ class OcorrenciaService {
       if (body.containsKey('setores') && body['setores'] is List) {
         return {
           'setores': (body['setores'] as List).map((item) => Setor.fromJson(item)).toList(),
-          'setor_usuario_id': int.tryParse(body['setor_usuario']?.toString() ?? ''),
+          'setor_usuario_id': body.containsKey('setor_usuario') ? int.tryParse(body['setor_usuario']?.toString() ?? '') : null,
         };
       } else {
         throw OcorrenciaException('Estrutura de resposta inesperada para setores.');

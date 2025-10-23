@@ -4,25 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:dc_app/models/setor.dart';
 
 class NativeMapWidget extends StatefulWidget {
-  final List<Setor> setores;
   final Position? currentPosition;
   final List<List<double>>? initialPolygon;
   final Function(List<List<double>>)? onPolygonChanged;
-  final Function(Setor?)? onSetorSelected;
-  final bool showSetores;
   final bool allowDrawing;
 
   const NativeMapWidget({
     Key? key,
-    required this.setores,
     this.currentPosition,
     this.initialPolygon,
     this.onPolygonChanged,
-    this.onSetorSelected,
-    this.showSetores = true,
     this.allowDrawing = true,
   }) : super(key: key);
 
@@ -32,7 +25,6 @@ class NativeMapWidget extends StatefulWidget {
 
 class _NativeMapWidgetState extends State<NativeMapWidget> {
   List<LatLng> _polygonPoints = [];
-  Setor? _selectedSetor;
   bool _isDrawing = false;
   double _area = 0.0;
   double _perimeter = 0.0;
@@ -115,12 +107,6 @@ class _NativeMapWidgetState extends State<NativeMapWidget> {
     widget.onPolygonChanged?.call([]);
   }
 
-  void _onSetorTap(Setor setor) {
-    setState(() {
-      _selectedSetor = setor;
-    });
-    widget.onSetorSelected?.call(setor);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -205,57 +191,6 @@ class _NativeMapWidgetState extends State<NativeMapWidget> {
                   ],
                 ),
               
-              // Setores (círculos)
-              if (widget.showSetores)
-                CircleLayer(
-                  circles: widget.setores.map((setor) {
-                    final isSelected = _selectedSetor?.id == setor.id;
-                    return CircleMarker(
-                      point: LatLng(
-                        setor.latitude ?? center.latitude,
-                        setor.longitude ?? center.longitude,
-                      ),
-                      radius: (setor.raio ?? 500).toDouble(),
-                      color: isSelected ? Colors.green : Colors.blue,
-                      borderColor: isSelected ? Colors.green.shade800 : Colors.blue.shade800,
-                      useRadiusInMeter: true,
-                    );
-                  }).toList(),
-                ),
-              
-              // Marcadores dos setores
-              if (widget.showSetores)
-                MarkerLayer(
-                  markers: widget.setores.map((setor) {
-                    final isSelected = _selectedSetor?.id == setor.id;
-                    return Marker(
-                      point: LatLng(
-                        setor.latitude ?? center.latitude,
-                        setor.longitude ?? center.longitude,
-                      ),
-                      width: 30,
-                      height: 30,
-                      child: GestureDetector(
-                        onTap: () => _onSetorTap(setor),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.green : Colors.blue,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white,
-                              width: 2,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.business,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
               
               // Polígono desenhado
               if (_polygonPoints.length >= 3)
