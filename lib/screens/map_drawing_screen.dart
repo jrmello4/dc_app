@@ -6,7 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
 import 'package:dc_app/services/setor_location_service.dart';
-import 'package:dc_app/widgets/robust_map_widget.dart';
+import 'package:dc_app/widgets/native_map_widget.dart';
 import 'package:dc_app/widgets/setor_selector_widget.dart';
 import 'package:dc_app/models/setor.dart';
 
@@ -287,17 +287,17 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
                     ),
 
                     // Mapa interativo
-                    Expanded(
-                      child: RobustMapWidget(
-                        setores: _setores,
-                        currentPosition: null, // Não usa localização atual
-                        initialPolygon: _selectedPolygon,
-                        onPolygonChanged: _onPolygonChanged,
-                        onSetorSelected: _onSetorSelected,
-                        showSetores: _showSetores,
-                        allowDrawing: _allowDrawing,
-                      ),
-                    ),
+        Expanded(
+          child: NativeMapWidget(
+            setores: _setores,
+            currentPosition: _currentPosition,
+            initialPolygon: _selectedPolygon,
+            onPolygonChanged: _onPolygonChanged,
+            onSetorSelected: _onSetorSelected,
+            showSetores: _showSetores,
+            allowDrawing: _allowDrawing,
+          ),
+        ),
 
                     // Painel de informações
                     if (_selectedPolygon.isNotEmpty)

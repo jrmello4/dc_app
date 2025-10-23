@@ -200,6 +200,12 @@
       "languageVersion": "3.5"
     },
     {
+      "name": "flutter_map",
+      "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_map-6.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "flutter_plugin_android_lifecycle",
       "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.32",
       "packageUri": "lib/",
@@ -410,6 +416,12 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "latlong2",
+      "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/latlong2-0.9.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "leak_tracker",
       "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker-11.0.2",
       "packageUri": "lib/",
@@ -434,6 +446,12 @@
       "languageVersion": "3.6"
     },
     {
+      "name": "lists",
+      "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/lists-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "logger",
       "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/logger-2.6.2",
       "packageUri": "lib/",
@@ -454,6 +472,12 @@
     {
       "name": "meta",
       "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.16.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "mgrs_dart",
+      "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/mgrs_dart-2.0.0",
       "packageUri": "lib/",
       "languageVersion": "2.12"
     },
@@ -554,6 +578,12 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "polylabel",
+      "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/polylabel-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.13"
+    },
+    {
       "name": "posix",
       "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/posix-6.0.3",
       "packageUri": "lib/",
@@ -564,6 +594,12 @@
       "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/printing-5.14.2",
       "packageUri": "lib/",
       "languageVersion": "3.3"
+    },
+    {
+      "name": "proj4dart",
+      "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/proj4dart-2.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "provider",
@@ -716,6 +752,12 @@
       "languageVersion": "3.5"
     },
     {
+      "name": "unicode",
+      "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/unicode-0.3.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "url_launcher",
       "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher-6.3.2",
       "packageUri": "lib/",
@@ -834,6 +876,12 @@
       "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/win32-5.15.0",
       "packageUri": "lib/",
       "languageVersion": "3.8"
+    },
+    {
+      "name": "wkt_parser",
+      "rootUri": "file:///C:/Users/adenilson.j/AppData/Local/Pub/Cache/hosted/pub.dev/wkt_parser-2.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "xdg_directories",

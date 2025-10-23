@@ -11,6 +11,7 @@
         "cached_network_image",
         "cupertino_icons",
         "flutter",
+        "flutter_map",
         "flutter_secure_storage",
         "flutter_svg",
         "geocoding",
@@ -18,6 +19,7 @@
         "http",
         "image_picker",
         "intl",
+        "latlong2",
         "logger",
         "pdf",
         "printing",
@@ -68,6 +70,13 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "latlong2",
+      "version": "0.9.1",
+      "dependencies": [
+        "intl"
       ]
     },
     {
@@ -1275,6 +1284,64 @@
       "name": "synchronized",
       "version": "3.4.0",
       "dependencies": []
+    },
+    {
+      "name": "flutter_map",
+      "version": "6.2.1",
+      "dependencies": [
+        "async",
+        "collection",
+        "flutter",
+        "http",
+        "latlong2",
+        "logger",
+        "meta",
+        "polylabel",
+        "proj4dart",
+        "vector_math"
+      ]
+    },
+    {
+      "name": "proj4dart",
+      "version": "2.1.0",
+      "dependencies": [
+        "meta",
+        "mgrs_dart",
+        "wkt_parser"
+      ]
+    },
+    {
+      "name": "polylabel",
+      "version": "1.0.1",
+      "dependencies": [
+        "collection"
+      ]
+    },
+    {
+      "name": "wkt_parser",
+      "version": "2.0.0",
+      "dependencies": []
+    },
+    {
+      "name": "mgrs_dart",
+      "version": "2.0.0",
+      "dependencies": [
+        "unicode"
+      ]
+    },
+    {
+      "name": "unicode",
+      "version": "0.3.1",
+      "dependencies": [
+        "lists"
+      ]
+    },
+    {
+      "name": "lists",
+      "version": "1.0.1",
+      "dependencies": [
+        "meta"
+      ]
     }
   ],
   "configVersion": 1

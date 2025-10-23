@@ -60,30 +60,10 @@ class OcorrenciaService {
       );
     } catch (e) {
       _logger.e("Erro ao buscar dados de criação", error: e);
-      return _getMockCreationData();
+      throw OcorrenciaException('Falha ao carregar dados para criação de ocorrência: $e');
     }
   }
 
-  static OcorrenciaCreationData _getMockCreationData() {
-    return OcorrenciaCreationData(
-      prioridades: [
-        DropdownItem(id: 1, nome: 'Baixa'),
-        DropdownItem(id: 2, nome: 'Média'),
-        DropdownItem(id: 3, nome: 'Alta'),
-      ],
-      tiposOcorrencia: [
-        DropdownItem(id: 1, nome: 'Alagamento'),
-        DropdownItem(id: 2, nome: 'Deslizamento'),
-        DropdownItem(id: 3, nome: 'Incêndio'),
-      ],
-      setores: [
-        Setor(id: 1, nome: 'Centro', latitude: -23.5505, longitude: -46.6333, raio: 500),
-        Setor(id: 2, nome: 'Zona Norte', latitude: -23.496, longitude: -46.627, raio: 1000),
-        Setor(id: 3, nome: 'Zona Sul', latitude: -23.682, longitude: -46.699, raio: 1500),
-      ],
-      setorUsuarioId: 1,
-    );
-  }
 
   static Future<List<DropdownItem>> _fetchGenericDropdownItems(String url, Map<String, String> headers) async {
     final response = await http.get(Uri.parse(url), headers: headers);
@@ -148,6 +128,39 @@ class OcorrenciaService {
       print('🗺️ Setor no mapa: ${mapData['setor']}');
     }
     
+    // Prepara dados do polígono para o backend
+    List<Map<String, dynamic>> poligonoData = [];
+    if (poligono != null && poligono.isNotEmpty) {
+      poligonoData.add({
+        'nome': 'Área desenhada - ${DateTime.now().toString().substring(0, 19)}',
+        'geom': {
+          'type': 'Polygon',
+          'coordinates': [poligono.map((point) => [point[1], point[0]]).toList()] // GeoJSON format: [lng, lat]
+        }
+      });
+    }
+
+    // Prepara dados do ponto central
+    List<Map<String, dynamic>> pontoData = [];
+    if (latitude != null && longitude != null) {
+      pontoData.add({
+        'nome': 'Ponto central - ${DateTime.now().toString().substring(0, 19)}',
+        'geom': {
+          'type': 'Point',
+          'coordinates': [longitude, latitude] // GeoJSON format: [lng, lat]
+        }
+      });
+    }
+
+    // Log dos dados formatados para o backend
+    print('📋 Dados formatados para o backend:');
+    if (pontoData.isNotEmpty) {
+      print('📍 Ponto central: ${json.encode(pontoData)}');
+    }
+    if (poligonoData.isNotEmpty) {
+      print('🗺️ Polígono: ${json.encode(poligonoData)}');
+    }
+
     request.fields.addAll({
       'nome': assunto,
       'descricao': descricao,
@@ -155,9 +168,8 @@ class OcorrenciaService {
       if (prioridadeId != null) 'prioridade': prioridadeId.toString(),
       if (setorId != null) 'setor': setorId.toString(),
       if (tipoOcorrenciaId != null) 'tipo_ocorrencia': tipoOcorrenciaId.toString(),
-      if (latitude != null) 'latitude': latitude.toString(),
-      if (longitude != null) 'longitude': longitude.toString(),
-      if (poligono != null) 'poligono': json.encode(poligono),
+      if (pontoData.isNotEmpty) 'ponto': json.encode(pontoData),
+      if (poligonoData.isNotEmpty) 'poligono': json.encode(poligonoData),
       if (mapData != null) 'map_data': json.encode(mapData), // Dados completos do mapa
     });
 
