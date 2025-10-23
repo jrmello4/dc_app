@@ -125,6 +125,7 @@ class OcorrenciaService {
     double? latitude,
     double? longitude,
     List<List<double>>? poligono, // Novo parâmetro para polígono
+    Map<String, dynamic>? mapData, // Dados completos do mapa com triangulações
   }) async {
     final token = AuthService.token;
     final userId = AuthService.userId;
@@ -132,6 +133,20 @@ class OcorrenciaService {
 
     var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/chamado/add/'));
     request.headers['Authorization'] = 'Token $token';
+    
+    // Log dos dados que serão enviados
+    print('📤 Enviando dados para o servidor:');
+    print('📍 Latitude: $latitude');
+    print('📍 Longitude: $longitude');
+    print('🗺️ Polígono: ${poligono?.length} pontos');
+    if (poligono != null) {
+      print('🗺️ Primeiro ponto: ${poligono.first}');
+    }
+    if (mapData != null) {
+      print('🗺️ Dados completos do mapa: ${mapData.keys.join(', ')}');
+      print('🗺️ Centro do mapa: ${mapData['center']}');
+      print('🗺️ Setor no mapa: ${mapData['setor']}');
+    }
     
     request.fields.addAll({
       'nome': assunto,
@@ -143,6 +158,7 @@ class OcorrenciaService {
       if (latitude != null) 'latitude': latitude.toString(),
       if (longitude != null) 'longitude': longitude.toString(),
       if (poligono != null) 'poligono': json.encode(poligono),
+      if (mapData != null) 'map_data': json.encode(mapData), // Dados completos do mapa
     });
 
     if (imagens != null) {
@@ -152,9 +168,15 @@ class OcorrenciaService {
     }
 
     final response = await request.send();
+    print('📡 Resposta do servidor: ${response.statusCode}');
+    
     if (response.statusCode >= 300) {
-      throw OcorrenciaException('Falha ao criar ocorrência.');
+      final responseBody = await response.stream.bytesToString();
+      print('❌ Erro do servidor: $responseBody');
+      throw OcorrenciaException('Falha ao criar ocorrência. Status: ${response.statusCode}');
     }
+    
+    print('✅ Ocorrência criada com sucesso no servidor!');
   }
 
   static Future<List<Ocorrencia>> getOcorrenciasByStatus(String status) async {

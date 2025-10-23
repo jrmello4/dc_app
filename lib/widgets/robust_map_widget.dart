@@ -137,8 +137,8 @@ class _RobustMapWidgetState extends State<RobustMapWidget> {
   }
 
   String _getMapHTML() {
-    final currentLat = widget.currentPosition?.latitude ?? -23.5505;
-    final currentLon = widget.currentPosition?.longitude ?? -46.6333;
+    final currentLat = widget.currentPosition?.latitude ?? -26.3726761;
+    final currentLon = widget.currentPosition?.longitude ?? -48.7233351;
     
     final setoresJson = widget.setores.map((setor) => {
       'id': setor.id,
@@ -271,7 +271,13 @@ class _RobustMapWidgetState extends State<RobustMapWidget> {
                     addInitialPolygon();
                 }
                 
-                // Não adiciona marcador fixo - permite escolha livre da área
+                // Adiciona marcador da posição atual
+                if (${widget.currentPosition != null}) {
+                    L.marker([$currentLat, $currentLon])
+                        .addTo(map)
+                        .bindPopup('Sua localização atual')
+                        .openPopup();
+                }
                 
                 // Configura eventos de desenho
                 setupDrawingEvents();

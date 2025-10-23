@@ -62,16 +62,22 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
+      print('🔍 Iniciando obtenção de localização...');
+      
       // Solicita permissão de localização
       bool hasPermission = await LocationService.requestLocationPermission();
       if (!hasPermission) {
+        print('❌ Permissão de localização negada');
         throw Exception('Permissão de localização negada');
       }
+      print('✅ Permissão de localização concedida');
 
       // Obtém localização atual
+      print('📍 Obtendo localização atual...');
       final locationData = await LocationService.getCurrentLocationOnly();
       
       if (locationData != null) {
+        print('✅ Localização obtida: ${locationData['latitude']}, ${locationData['longitude']}');
         setState(() {
           _currentPosition = Position(
             latitude: locationData['latitude'],
@@ -86,9 +92,12 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
             headingAccuracy: 0.0,
           );
         });
+        print('✅ Posição atual definida no estado');
+      } else {
+        print('❌ Dados de localização nulos');
       }
     } catch (e) {
-      print('Erro ao obter localização: $e');
+      print('❌ Erro ao obter localização: $e');
       // Continua sem localização se houver erro
     }
   }
@@ -131,14 +140,43 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
       final area = _calculatePolygonArea(_selectedPolygon);
       final perimeter = _calculatePolygonPerimeter(_selectedPolygon);
       
+      // Cria dados completos do mapa com triangulações
+      final mapData = {
+        'center': {
+          'lat': _currentPosition?.latitude ?? -26.3726761,
+          'lng': _currentPosition?.longitude ?? -48.7233351,
+        },
+        'polygon': _selectedPolygon,
+        'setor': {
+          'id': _selectedSetor!.id,
+          'nome': _selectedSetor!.nome,
+          'lat': _selectedSetor!.latitude ?? _currentPosition?.latitude ?? -26.3726761,
+          'lng': _selectedSetor!.longitude ?? _currentPosition?.longitude ?? -48.7233351,
+          'raio': _selectedSetor!.raio ?? 500,
+        },
+        'area': area,
+        'perimeter': perimeter,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      
+      print('💾 Salvando ocorrência com dados do mapa...');
+      print('📍 Centro: ${mapData['center']}');
+      print('🗺️ Polígono: ${_selectedPolygon.length} pontos');
+      print('📊 Área: ${area.toStringAsFixed(2)} m²');
+      print('📏 Perímetro: ${perimeter.toStringAsFixed(2)} m');
+      print('🏢 Setor: ${_selectedSetor!.nome} (ID: ${_selectedSetor!.id})');
+      
       await OcorrenciaService.createOcorrencia(
         assunto: 'Ocorrência com área desenhada',
-        descricao: 'Ocorrência criada com polígono desenhado no mapa. Área: ${area.toStringAsFixed(2)} m², Perímetro: ${perimeter.toStringAsFixed(2)} m',
+        descricao: 'Ocorrência criada com polígono desenhado no mapa. Área: ${area.toStringAsFixed(2)} m², Perímetro: ${perimeter.toStringAsFixed(2)} m. Setor: ${_selectedSetor!.nome}',
         setorId: _selectedSetor?.id,
         latitude: _currentPosition?.latitude,
         longitude: _currentPosition?.longitude,
         poligono: _selectedPolygon,
+        mapData: mapData, // Novo parâmetro com dados completos do mapa
       );
+      
+      print('✅ Ocorrência salva com sucesso!');
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
