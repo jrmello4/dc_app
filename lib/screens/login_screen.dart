@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/services/auth_service.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
@@ -27,10 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await AuthService.login(_emailController.text.trim(), _passwordController.text.trim());
-      if (mounted) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => const HomeScreen()));
-      }
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.login(_emailController.text.trim(), _passwordController.text.trim());
+      // O Consumer no main.dart vai automaticamente navegar para HomeScreen
     } on AuthException catch (e) {
       _showError(e.message);
     } catch (e) {

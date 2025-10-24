@@ -2,6 +2,7 @@
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/config/api_config.dart'; // Import corrigido
 import 'package:dc_app/services/auth_service.dart'; // Import corrigido
 import 'package:url_launcher/url_launcher.dart'; // Import para abrir URL
@@ -40,7 +41,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       // Chama o AuthService para fazer o registo real
-      await AuthService.register(
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.register(
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         email: _emailController.text.trim(),

@@ -38,12 +38,22 @@ class OcorrenciaException implements Exception {
 
 class OcorrenciaService {
   static final _logger = Logger(printer: PrettyPrinter(methodCount: 1));
+  
+  // Helper para obter dados de autenticação
+  static Map<String, String> _getAuthHeaders() {
+    final headers = _getAuthHeaders();
+    return {'Authorization': 'Token $token', 'Accept': 'application/json'};
+  }
+  
+  static int _getUserId() {
+    final userId = AuthService.userId;
+    if (userId == null) throw AuthException('Sessão expirada.');
+    return userId;
+  }
 
   static Future<OcorrenciaCreationData> getCreationData() async {
-    final token = AuthService.token;
-    final userId = AuthService.userId;
-    if (token == null || userId == null) throw AuthException('Sessão expirada.');
-    final headers = {'Authorization': 'Token $token', 'Accept': 'application/json'};
+    final headers = _getAuthHeaders();
+    final userId = _getUserId();
     
     _logger.i("Iniciando busca de dados para criação de ocorrência");
     
@@ -107,12 +117,11 @@ class OcorrenciaService {
     List<List<double>>? poligono, // Novo parâmetro para polígono
     Map<String, dynamic>? mapData, // Dados completos do mapa com triangulações
   }) async {
-    final token = AuthService.token;
-    final userId = AuthService.userId;
-    if (token == null || userId == null) throw AuthException('Sessão expirada.');
+    final headers = _getAuthHeaders();
+    final userId = _getUserId();
 
     var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/chamado/add/'));
-    request.headers['Authorization'] = 'Token $token';
+    request.headers.addAll(headers);
     
     // Log dos dados que serão enviados
     print('📤 Enviando dados para o servidor:');
@@ -210,11 +219,10 @@ class OcorrenciaService {
   }
 
   static Future<List<Ocorrencia>> getOcorrenciasByStatus(String status) async {
-    final token = AuthService.token;
-    if (token == null) throw AuthException('Sessão expirada.');
+    final headers = _getAuthHeaders();
     
     final url = Uri.parse('${ApiConfig.baseUrl}/chamado/status/$status/usuario/listar/');
-    final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+    final response = await http.get(url, headers: headers);
     
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
@@ -224,11 +232,10 @@ class OcorrenciaService {
   }
 
   static Future<List<Ocorrencia>> getAssignedOcorrencias() async {
-    final token = AuthService.token;
-    if (token == null) throw AuthException('Sessão expirada.');
+    final headers = _getAuthHeaders();
     
     final url = Uri.parse('${ApiConfig.baseUrl}/chamado/atribuidas/usuario/listar/');
-    final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+    final response = await http.get(url, headers: headers);
     
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
@@ -238,8 +245,7 @@ class OcorrenciaService {
   }
   
   static Future<Ocorrencia> getOcorrenciaDetails(int ocorrenciaId) async {
-    final token = AuthService.token;
-    if (token == null) throw AuthException('Sessão expirada.');
+    final headers = _getAuthHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/visualizar/');
     final headers = {'Authorization': 'Token $token'};
     final response = await http.get(url, headers: headers);
@@ -250,10 +256,9 @@ class OcorrenciaService {
   }
 
   static Future<List<Mensagem>> getMessages(int ocorrenciaId) async {
-    final token = AuthService.token;
-    if (token == null) throw AuthException('Sessão expirada.');
+    final headers = _getAuthHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/mensagem/list/');
-    final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+    final response = await http.get(url, headers: headers);
     if (response.statusCode == 200) {
       final List<dynamic> body = json.decode(utf8.decode(response.bodyBytes));
       return body.map((item) => Mensagem.fromJson(item)).toList();
@@ -262,10 +267,9 @@ class OcorrenciaService {
   }
 
   static Future<List<Avaliacao>> getRatings(int ocorrenciaId) async {
-    final token = AuthService.token;
-    if (token == null) throw AuthException('Sessão expirada.');
+    final headers = _getAuthHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/avaliacao/list/');
-    final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+    final response = await http.get(url, headers: headers);
     if (response.statusCode == 200) {
       final List<dynamic> body = json.decode(utf8.decode(response.bodyBytes));
       return body.map((item) => Avaliacao.fromJson(item)).toList();
@@ -274,11 +278,10 @@ class OcorrenciaService {
   }
 
   static Future<void> addMessage(int ocorrenciaId, String text, {File? image}) async {
-    final token = AuthService.token;
-    if (token == null) throw AuthException('Sessão expirada.');
+    final headers = _getAuthHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/mensagem/add/');
     var request = http.MultipartRequest('POST', url);
-    request.headers['Authorization'] = 'Token $token';
+    request.headers.addAll(headers);
     if (text.isNotEmpty) {
       request.fields['descricao'] = text;
     }
@@ -292,21 +295,19 @@ class OcorrenciaService {
   }
 
   static Future<void> addRating({required int ocorrenciaId, required int nota, required String comentario}) async {
-    final token = AuthService.token;
-    if (token == null) throw AuthException('Sessão expirada.');
+    final headers = _getAuthHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/avaliacao/add/');
     final response = await http.post(url,
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Token $token'},
+        headers: {'Content-Type': 'application/json', ...headers},
         body: json.encode({'nota': nota, 'descricao': comentario}));
     if (response.statusCode >= 300) throw OcorrenciaException('Falha ao enviar avaliação.');
   }
 
   static Future<void> addImage(int ocorrenciaId, File image) async {
-    final token = AuthService.token;
-    if (token == null) throw AuthException('Sessão expirada.');
+    final headers = _getAuthHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/imagem/add/');
     var request = http.MultipartRequest('POST', url);
-    request.headers['Authorization'] = 'Token $token';
+    request.headers.addAll(headers);
     request.files.add(await http.MultipartFile.fromPath('imagem', image.path));
     final response = await request.send();
     if (response.statusCode != 201) {

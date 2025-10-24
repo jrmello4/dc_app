@@ -17,9 +17,9 @@ class AuthException implements Exception {
   String toString() => message;
 }
 
-class AuthService {
+class AuthService extends ChangeNotifier {
   static const _storage = FlutterSecureStorage();
-  static final _logger = Logger();
+  final _logger = Logger();
 
   static const _tokenKey = 'authToken';
   static const _userIdKey = 'authUserId';
@@ -27,30 +27,32 @@ class AuthService {
   static const _isTecnicoKey = 'isTecnico';
   static const _userPhotoUrlKey = 'userPhotoUrl';
 
-  static String? _token;
-  static int? _userId;
-  static String? _nomeUsuario;
-  static bool _isTecnico = false;
-  static String? _photoUrl;
+  String? _token;
+  int? _userId;
+  String? _nomeUsuario;
+  bool _isTecnico = false;
+  String? _photoUrl;
 
   // COMENTADO: Instância do NotificationService para enviar o token FCM
-  // static final NotificationService _notificationService = NotificationService();
+  // final NotificationService _notificationService = NotificationService();
 
-  static String? get token => _token;
-  static int? get userId => _userId;
-  static String? get nomeUsuario => _nomeUsuario;
-  static bool get isTecnico => _isTecnico;
-  static String? get photoUrl => _photoUrl;
+  String? get token => _token;
+  int? get userId => _userId;
+  String? get nomeUsuario => _nomeUsuario;
+  bool get isTecnico => _isTecnico;
+  String? get photoUrl => _photoUrl;
+  
+  bool get isAuthenticated => _token != null;
 
   // Função auxiliar para construir URL completa da foto
-  static String? _buildFullPhotoUrl(String? partialUrl) {
+  String? _buildFullPhotoUrl(String? partialUrl) {
     if (partialUrl == null || partialUrl.isEmpty) return null;
     if (partialUrl.startsWith('http')) return partialUrl;
     // Usa a baseMediaUrl que não tem /api no final
     return ApiConfig.baseMediaUrl + partialUrl;
   }
 
-  static Future<void> _saveAuthData(String token, int userId, String nomeUsuario, bool isTecnico, String? photoUrl) async {
+  Future<void> _saveAuthData(String token, int userId, String nomeUsuario, bool isTecnico, String? photoUrl) async {
     _token = token;
     _userId = userId;
     _nomeUsuario = nomeUsuario;
@@ -66,9 +68,11 @@ class AuthService {
     } else {
       await _storage.delete(key: _userPhotoUrlKey);
     }
+    
+    notifyListeners(); // Notifica os listeners sobre a mudança
   }
 
-  static Future<void> loadAuthData() async {
+  Future<void> loadAuthData() async {
     try {
       _token = await _storage.read(key: _tokenKey);
       final userIdStr = await _storage.read(key: _userIdKey);
@@ -77,22 +81,26 @@ class AuthService {
       final isTecnicoStr = await _storage.read(key: _isTecnicoKey);
       _isTecnico = isTecnicoStr == 'true';
       _photoUrl = await _storage.read(key: _userPhotoUrlKey);
+      
+      notifyListeners(); // Notifica os listeners sobre a mudança
     } catch (e) {
       _logger.e('Falha ao carregar dados de autenticação', error: e);
       await clearAuthData(); // Limpa dados corrompidos
     }
   }
 
-  static Future<void> clearAuthData() async {
+  Future<void> clearAuthData() async {
     await _storage.deleteAll();
     _token = null;
     _userId = null;
     _nomeUsuario = null;
     _isTecnico = false;
     _photoUrl = null;
+    
+    notifyListeners(); // Notifica os listeners sobre a mudança
   }
 
-  static Future<void> login(String username, String password) async {
+  Future<void> login(String username, String password) async {
     // Lógica original da API (sem mock)
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/login/'),
@@ -138,7 +146,7 @@ class AuthService {
     }
   }
 
-  static Future<void> register({
+  Future<void> register({
     required String firstName,
     required String lastName,
     required String email,
@@ -179,7 +187,7 @@ class AuthService {
     }
   }
 
-  static Future<bool> validateToken() async {
+  Future<bool> validateToken() async {
     // Lógica original da API (sem mock)
     if (_token == null) await loadAuthData();
     if (_token == null) return false;
@@ -192,7 +200,7 @@ class AuthService {
     }
   }
 
-  static Future<Map<String, dynamic>> getUserProfile() async {
+  Future<Map<String, dynamic>> getUserProfile() async {
     // Lógica original da API (sem mock)
     if (_token == null) {
       await loadAuthData(); // Tenta carregar se não estiver na memória
@@ -213,7 +221,7 @@ class AuthService {
     }
   }
 
-  static Future<void> updateProfile({required Map<String, String> data, File? image}) async {
+  Future<void> updateProfile({required Map<String, String> data, File? image}) async {
     // Lógica original da API (sem mock)
     if (_token == null) throw AuthException('Usuário não autenticado.');
 
@@ -261,7 +269,7 @@ class AuthService {
     }
   }
 
-  static Future<void> requestPasswordReset(String email) async {
+  Future<void> requestPasswordReset(String email) async {
     // Lógica original da API (sem mock)
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/usuario/password/reset/'), // Endpoint do código original
@@ -289,7 +297,7 @@ class AuthService {
     }
   }
 
-  static Future<void> resetPassword(String uidb64, String token, String newPassword1, String newPassword2) async {
+  Future<void> resetPassword(String uidb64, String token, String newPassword1, String newPassword2) async {
     // Lógica original da API (sem mock)
     final apiUrl = Uri.parse('${ApiConfig.baseUrl}/usuario/reset/$uidb64/$token/'); // Endpoint do código original
     final response = await http.post(

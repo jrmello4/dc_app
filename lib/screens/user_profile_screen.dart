@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/services/auth_service.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -32,7 +33,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<Map<String, dynamic>> _loadUserProfile() async {
     try {
-      final data = await AuthService.getUserProfile();
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final data = await authService.getUserProfile();
       _firstNameController.text = data['first_name'] ?? '';
       _lastNameController.text = data['last_name'] ?? '';
       _emailController.text = data['email'] ?? '';
@@ -58,7 +60,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await AuthService.updateProfile(
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.updateProfile(
         data: {
           'first_name': _firstNameController.text.trim(),
           'last_name': _lastNameController.text.trim(),
@@ -178,7 +181,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildProfileImage() {
-    final photoUrl = AuthService.photoUrl;
+    final authService = Provider.of<AuthService>(context, listen: true);
+    final photoUrl = authService.photoUrl;
     return Center(
       child: Stack(
         children: [

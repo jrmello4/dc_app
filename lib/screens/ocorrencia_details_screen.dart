@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/models/avaliacao.dart';
 import 'package:dc_app/models/mensagem.dart';
 import 'package:dc_app/models/ocorrencia.dart';
@@ -189,8 +190,9 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
             final Ocorrencia ocorrencia = snapshot.data!;
             final List<Mensagem> messages = ocorrencia.mensagens;
             final bool isClosed = ocorrencia.status.toLowerCase() == 'encerrada';
-            final bool isOwner = (AuthService.userId == ocorrencia.solicitanteId);
-            final bool canManage = AuthService.isTecnico || isOwner;
+            final authService = Provider.of<AuthService>(context, listen: false);
+            final bool isOwner = (authService.userId == ocorrencia.solicitanteId);
+            final bool canManage = authService.isTecnico || isOwner;
 
             return Scaffold(
               appBar: _buildAppBar(context, ocorrencia, isClosed, canManage),
@@ -336,7 +338,8 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
   }
 
   Widget _buildMensagensSection(List<Mensagem> messages, ThemeData theme) {
-    final currentUserId = AuthService.userId;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUserId = authService.userId;
     messages.sort((a, b) => (a.dataCriacao ?? DateTime(0)).compareTo(b.dataCriacao ?? DateTime(0)));
 
     return Column(
@@ -366,14 +369,15 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
   }
 
   Widget _buildAvaliacaoSection(List<Avaliacao> ratings, ThemeData theme) {
-    final bool hasUserRated = ratings.any((r) => r.usuarioId == AuthService.userId);
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final bool hasUserRated = ratings.any((r) => r.usuarioId == authService.userId);
 
     if (hasUserRated) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionTitle('Sua Avaliação', theme),
-          ...ratings.where((r) => r.usuarioId == AuthService.userId).map((r) => _buildAvaliacaoCard(r, theme)),
+          ...ratings.where((r) => r.usuarioId == authService.userId).map((r) => _buildAvaliacaoCard(r, theme)),
         ],
       );
     } else {

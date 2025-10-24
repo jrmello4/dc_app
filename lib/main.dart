@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
 // import 'package:firebase_core/firebase_core.dart'; // COMENTADO
 import 'package:app_links/app_links.dart';
 // import 'package:dc_app/services/notification_service.dart'; // COMENTADO
@@ -52,23 +53,23 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
-  late Future<bool> _isLoggedInFuture;
+  late AuthService _authService;
   // COMENTADO: Notification Service
   // final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
     super.initState();
-    _isLoggedInFuture = _initializeApp();
+    _authService = AuthService();
+    _initializeApp();
     _initDeepLinks();
     // COMENTADO: Inicialização de notificações
     // _notificationService.initNotifications();
     // _notificationService.checkForInitialMessage();
   }
 
-  Future<bool> _initializeApp() async {
-    await AuthService.loadAuthData();
-    return AuthService.token != null;
+  Future<void> _initializeApp() async {
+    await _authService.loadAuthData();
   }
 
   @override
@@ -104,67 +105,67 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: 'Defesa Civil App',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: globalColorScheme,
-        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-        appBarTheme: AppBarTheme(
-          backgroundColor: globalColorScheme.primary,
-          foregroundColor: globalColorScheme.onPrimary,
-          elevation: 1.0,
-          titleTextStyle: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
+    return ChangeNotifierProvider<AuthService>(
+      create: (context) => _authService,
+      child: MaterialApp(
+        navigatorKey: navigatorKey,
+        title: 'Defesa Civil App',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: globalColorScheme,
+          scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+          appBarTheme: AppBarTheme(
             backgroundColor: globalColorScheme.primary,
             foregroundColor: globalColorScheme.onPrimary,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 1.5,
-          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-          color: globalColorScheme.surface,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: globalColorScheme.primary,
-              width: 2.0,
+            elevation: 1.0,
+            titleTextStyle: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
           ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: globalColorScheme.primary,
+              foregroundColor: globalColorScheme.onPrimary,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          cardTheme: CardThemeData(
+            elevation: 1.5,
+            margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+            color: globalColorScheme.surface,
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: globalColorScheme.primary,
+                width: 2.0,
+              ),
+            ),
+          ),
+          useMaterial3: true,
         ),
-        useMaterial3: true,
-      ),
-      home: FutureBuilder<bool>(
-        future: _isLoggedInFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-          final isLoggedIn = snapshot.data ?? false;
-          return isLoggedIn ? const HomeScreen() : const LoginScreen();
+        home: Consumer<AuthService>(
+          builder: (context, authService, child) {
+            if (authService.isAuthenticated) {
+              return const HomeScreen();
+            } else {
+              return const LoginScreen();
+            }
+          },
+        ),
+        routes: {
+          '/login': (context) => const LoginScreen(),
+          '/home': (context) => const HomeScreen(),
         },
       ),
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        '/home': (context) => const HomeScreen(),
-      },
     );
   }
 }

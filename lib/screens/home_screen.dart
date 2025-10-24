@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/screens/assigned_ocorrencias_screen.dart'; // Import corrigido
 import 'package:dc_app/screens/create_ocorrencia_screen.dart';   // Import corrigido
 import 'package:dc_app/screens/login_screen.dart';                // Import corrigido
@@ -22,17 +23,11 @@ class _HomeScreenState extends State<HomeScreen> {
   // Função para fazer logout
   Future<void> _logout() async {
     _logger.i('Iniciando processo de logout.');
+    final authService = Provider.of<AuthService>(context, listen: false);
     // Limpa os dados de autenticação armazenados
-    await AuthService.clearAuthData(); //
+    await authService.clearAuthData();
     _logger.i('Dados de autenticação limpos.');
-
-    if (mounted) {
-      // Navega de volta para a tela de login, removendo todas as telas anteriores
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (Route<dynamic> route) => false,
-      );
-    }
+    // O Consumer no main.dart vai automaticamente navegar para LoginScreen
   }
 
   // Função para navegar para a tela de perfil
