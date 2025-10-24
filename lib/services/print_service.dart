@@ -245,7 +245,7 @@ class PrintService {
                         style: const pw.TextStyle(fontSize: 10),
                       ),
                       pw.Text(
-                        'Usuário: ${AuthService.nomeUsuario ?? 'Não informado'}',
+                        'Usuário: ${AuthService().nomeUsuario ?? 'Não informado'}',
                         style: const pw.TextStyle(fontSize: 10),
                       ),
                     ],
