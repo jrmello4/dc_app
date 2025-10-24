@@ -100,7 +100,7 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
         final locationStateService = Provider.of<LocationStateService>(context, listen: false);
         locationStateService.setCurrentPosition(position);
         
-        print('🔍 Debug - _currentPosition definido: $_currentPosition');
+        print('🔍 Debug - Posição salva no LocationStateService');
         _logger.i('Localização obtida para centralizar o mapa');
         _showSuccess('Localização obtida para centralizar o mapa');
       } else {
@@ -142,9 +142,9 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
 
     try {
       // Debug: verificar se a localização foi capturada
-      print('🔍 Debug - _currentPosition: $_currentPosition');
-      print('🔍 Debug - _hasDrawnArea: $_hasDrawnArea');
-      print('🔍 Debug - _drawnPolygon: ${_drawnPolygon.length} pontos');
+      print('🔍 Debug - currentPosition: ${locationStateService.currentPosition}');
+      print('🔍 Debug - hasDrawnArea: ${locationStateService.hasDrawnArea}');
+      print('🔍 Debug - drawnPolygon: ${locationStateService.drawnPolygon?.length ?? 0} pontos');
       
       final locationStateService = Provider.of<LocationStateService>(context, listen: false);
       
