@@ -20,6 +20,11 @@ class AuthException implements Exception {
 class AuthService extends ChangeNotifier {
   static const _storage = FlutterSecureStorage();
   final _logger = Logger();
+  
+  // Instância singleton para métodos estáticos
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+  AuthService._internal();
 
   static const _tokenKey = 'authToken';
   static const _userIdKey = 'authUserId';
@@ -43,6 +48,14 @@ class AuthService extends ChangeNotifier {
   String? get photoUrl => _photoUrl;
   
   bool get isAuthenticated => _token != null;
+
+  // Métodos estáticos para compatibilidade com serviços
+  static String? get token => _instance._token;
+  static int? get userId => _instance._userId;
+  static String? get nomeUsuario => _instance._nomeUsuario;
+  static bool get isTecnico => _instance._isTecnico;
+  static String? get photoUrl => _instance._photoUrl;
+  static bool get isAuthenticated => _instance._token != null;
 
   // Função auxiliar para construir URL completa da foto
   String? _buildFullPhotoUrl(String? partialUrl) {

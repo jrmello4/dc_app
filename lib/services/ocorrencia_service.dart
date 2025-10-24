@@ -41,15 +41,13 @@ class OcorrenciaService {
   
   // Helper para obter dados de autenticação
   static Map<String, String> _getAuthHeaders() {
-    final authService = AuthService();
-    final token = authService.token;
+    final token = AuthService.token;
     if (token == null) throw AuthException('Sessão expirada.');
     return {'Authorization': 'Token $token', 'Accept': 'application/json'};
   }
   
   static int _getUserId() {
-    final authService = AuthService();
-    final userId = authService.userId;
+    final userId = AuthService.userId;
     if (userId == null) throw AuthException('Sessão expirada.');
     return userId;
   }
