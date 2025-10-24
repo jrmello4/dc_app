@@ -10,6 +10,7 @@ import 'package:app_links/app_links.dart';
 // import 'package:firebase_messaging/firebase_messaging.dart'; // COMENTADO
 import 'package:dc_app/screens/home_screen.dart';
 import 'package:dc_app/services/auth_service.dart';
+import 'package:dc_app/services/location_state_service.dart';
 import 'package:dc_app/screens/login_screen.dart';
 import 'package:dc_app/screens/reset_password_screen.dart';
 
@@ -105,8 +106,15 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<AuthService>(
-      create: (context) => _authService,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthService>(
+          create: (context) => _authService,
+        ),
+        ChangeNotifierProvider<LocationStateService>(
+          create: (context) => LocationStateService(),
+        ),
+      ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
         title: 'Defesa Civil App',

@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:logger/logger.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/services/auth_service.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
+import 'package:dc_app/services/location_state_service.dart';
 import 'package:dc_app/widgets/autocomplete_field.dart';
 import 'package:dc_app/models/setor.dart';
 import 'package:dc_app/screens/map_drawing_screen.dart';
@@ -36,11 +38,6 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
   bool _isGettingLocation = false;
   final _areaController = TextEditingController();
   final _locationController = TextEditingController();
-  Position? _currentPosition;
-  
-  // Variáveis para polígono desenhado
-  List<List<double>> _drawnPolygon = [];
-  bool _hasDrawnArea = false;
 
   late Future<OcorrenciaCreationData> _creationDataFuture;
 
@@ -86,20 +83,22 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
       
       if (locationData != null) {
         print('🔍 Debug - Localização obtida: ${locationData['latitude']}, ${locationData['longitude']}');
-        setState(() {
-          _currentPosition = Position(
-            latitude: locationData['latitude'],
-            longitude: locationData['longitude'],
-            timestamp: DateTime.now(),
-            accuracy: locationData['accuracy'] ?? 0.0,
-            altitude: 0.0,
-            heading: 0.0,
-            speed: 0.0,
-            speedAccuracy: 0.0,
-            altitudeAccuracy: 0.0,
-            headingAccuracy: 0.0,
-          );
-        });
+        final position = Position(
+          latitude: locationData['latitude'],
+          longitude: locationData['longitude'],
+          timestamp: DateTime.now(),
+          accuracy: locationData['accuracy'] ?? 0.0,
+          altitude: 0.0,
+          heading: 0.0,
+          speed: 0.0,
+          speedAccuracy: 0.0,
+          altitudeAccuracy: 0.0,
+          headingAccuracy: 0.0,
+        );
+        
+        // Salva no LocationStateService
+        final locationStateService = Provider.of<LocationStateService>(context, listen: false);
+        locationStateService.setCurrentPosition(position);
         
         print('🔍 Debug - _currentPosition definido: $_currentPosition');
         _logger.i('Localização obtida para centralizar o mapa');
@@ -147,6 +146,8 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
       print('🔍 Debug - _hasDrawnArea: $_hasDrawnArea');
       print('🔍 Debug - _drawnPolygon: ${_drawnPolygon.length} pontos');
       
+      final locationStateService = Provider.of<LocationStateService>(context, listen: false);
+      
       await OcorrenciaService.createOcorrencia(
         assunto: _assuntoController.text,
         descricao: _descricaoController.text,
@@ -154,9 +155,9 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
         setorId: _selectedSetorId,
         tipoOcorrenciaId: _selectedTipoOcorrenciaId,
         imagens: _images,
-        latitude: _currentPosition?.latitude,
-        longitude: _currentPosition?.longitude,
-        poligono: _hasDrawnArea ? _drawnPolygon : null,
+        latitude: locationStateService.currentPosition?.latitude,
+        longitude: locationStateService.currentPosition?.longitude,
+        poligono: locationStateService.hasDrawnArea ? locationStateService.drawnPolygon : null,
       );
       _showSuccess('Ocorrência registrada com sucesso!');
       if (mounted) Navigator.of(context).pop(true); // Retorna true para a tela anterior saber que algo foi criado
@@ -191,20 +192,13 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
   }
 
   Future<void> _openMapDrawing() async {
-    final result = await Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const MapDrawingScreen(),
       ),
     );
-    
-    if (result != null && result is List<List<double>> && mounted) {
-      // O usuário desenhou uma área no mapa
-      setState(() {
-        _hasDrawnArea = true;
-        _drawnPolygon = result;
-      });
-      _showSuccess('Área desenhada com sucesso!');
-    }
+    // O LocationStateService já foi atualizado pelo MapDrawingScreen
+    // Não precisamos fazer nada aqui
   }
 
   @override
@@ -416,120 +410,124 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
 
   // Widget para o campo de localização
   Widget _buildLocationField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 16),
-        
-        // Título da seção
-        Row(
+    return Consumer<LocationStateService>(
+      builder: (context, locationStateService, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.map, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 8),
-            Text(
-              'Localização e Área',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        
-        const SizedBox(height: 12),
-        
-        // Botões de localização
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _isGettingLocation ? null : _getCurrentLocation,
-                icon: _isGettingLocation 
-                  ? const SizedBox(
-                      width: 16, 
-                      height: 16, 
-                      child: CircularProgressIndicator(strokeWidth: 2)
-                    )
-                  : const Icon(Icons.my_location),
-                label: Text(_isGettingLocation ? 'Obtendo...' : 'Minha Localização'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _openMapDrawing,
-                icon: const Icon(Icons.map),
-                label: Text(_hasDrawnArea ? 'Editar Área' : 'Desenhar Área'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _hasDrawnArea ? Colors.green : Colors.orange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ],
-        ),
-        
-        // Status da localização capturada
-        if (_currentPosition != null) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              border: Border.all(color: Colors.blue.shade200),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
+            const SizedBox(height: 16),
+            
+            // Título da seção
+            Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.blue.shade600, size: 16),
+                Icon(Icons.map, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Localização e Área',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Botões de localização
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isGettingLocation ? null : _getCurrentLocation,
+                    icon: _isGettingLocation 
+                      ? const SizedBox(
+                          width: 16, 
+                          height: 16, 
+                          child: CircularProgressIndicator(strokeWidth: 2)
+                        )
+                      : const Icon(Icons.my_location),
+                    label: Text(_isGettingLocation ? 'Obtendo...' : 'Minha Localização'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    'Localização capturada: ${_currentPosition!.latitude.toStringAsFixed(6)}, ${_currentPosition!.longitude.toStringAsFixed(6)}',
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontSize: 12,
+                  child: ElevatedButton.icon(
+                    onPressed: _openMapDrawing,
+                    icon: const Icon(Icons.map),
+                    label: Text(locationStateService.hasDrawnArea ? 'Editar Área' : 'Desenhar Área'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: locationStateService.hasDrawnArea ? Colors.green : Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-        
-        // Status da área desenhada
-        if (_hasDrawnArea) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              border: Border.all(color: Colors.green.shade200),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green.shade600, size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Área desenhada com ${_drawnPolygon.length} pontos',
-                    style: TextStyle(
-                      color: Colors.green.shade700,
-                      fontSize: 12,
-                    ),
-                  ),
+            
+            // Status da localização capturada
+            if (locationStateService.currentPosition != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  border: Border.all(color: Colors.blue.shade200),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ],
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.blue.shade600, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Localização capturada: ${locationStateService.currentPosition!.latitude.toStringAsFixed(6)}, ${locationStateService.currentPosition!.longitude.toStringAsFixed(6)}',
+                        style: TextStyle(
+                          color: Colors.blue.shade700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            // Status da área desenhada
+            if (locationStateService.hasDrawnArea) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  border: Border.all(color: Colors.green.shade200),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green.shade600, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Área desenhada com ${locationStateService.drawnPolygon?.length ?? 0} pontos',
+                        style: TextStyle(
+                          color: Colors.green.shade700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
