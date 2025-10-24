@@ -20,7 +20,6 @@ class AuthService extends ChangeNotifier {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   // --- Estado de Autenticação ---
-  // Removidos 'static' e o padrão singleton
   String? _token;
   int? _userId;
   String? _userName;

@@ -97,13 +97,7 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
   Future<void> _handleUpdateStatus(String acao) async {
     setState(() => _isUpdatingStatus = true);
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      final token = authService.token;
-      if (token == null) {
-        _showError('Sessão expirada. Faça login novamente.');
-        return;
-      }
-      final message = await _statusOcorrenciaService.atualizarStatusOcorrencia(token, widget.ocorrenciaId, acao);
+      final message = await _statusOcorrenciaService.atualizarStatusOcorrencia(widget.ocorrenciaId, acao);
       _showSuccess(message);
       _didStateChange = true;
       _loadDetails();

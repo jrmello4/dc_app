@@ -96,23 +96,51 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
 
   Future<void> _getCurrentLocation() async {
     _logger.i('Tentando obter localização atual...');
-    final locationState =
-    Provider.of<LocationStateService>(context, listen: false);
+    final locationState = Provider.of<LocationStateService>(context, listen: false);
+    
+    locationState.setGettingLocation(true);
 
     try {
-      final message = await locationState.getCurrentLocation();
-      if (!mounted) return;
+      // Solicita permissão de localização
+      bool hasPermission = await LocationService.requestLocationPermission();
+      if (!hasPermission) {
+        _showError('Permissão de localização negada. Não foi possível obter a localização atual.');
+        return;
+      }
 
-      if (locationState.currentPosition != null) {
-        _showSuccess(message);
-        _logger.i('Localização obtida: ${locationState.currentPosition}');
+      _logger.i('Obtendo localização atual...');
+      
+      // Obtém a localização atual
+      final locationData = await LocationService.getCurrentLocationOnly();
+      
+      if (locationData != null) {
+        final position = Position(
+          latitude: locationData['latitude'],
+          longitude: locationData['longitude'],
+          timestamp: DateTime.now(),
+          accuracy: locationData['accuracy'] ?? 0.0,
+          altitude: 0.0,
+          heading: 0.0,
+          speed: 0.0,
+          speedAccuracy: 0.0,
+          altitudeAccuracy: 0.0,
+          headingAccuracy: 0.0,
+        );
+        
+        // Salva no LocationStateService
+        locationState.setCurrentPosition(position);
+        
+        _logger.i('Localização obtida: ${position.latitude}, ${position.longitude}');
+        _showSuccess('Localização obtida com sucesso');
       } else {
-        _showError(message);
-        _logger.w('Não foi possível obter localização: $message');
+        _showError('Não foi possível obter a localização atual.');
+        _logger.w('locationData é null');
       }
     } catch (e) {
-      _logger.e('Exceção ao obter localização', error: e);
-      _showError('Erro ao obter localização: $e');
+      _logger.e('Erro ao obter localização', error: e);
+      _showError('Erro ao obter localização: ${e.toString()}');
+    } finally {
+      locationState.setGettingLocation(false);
     }
   }
 

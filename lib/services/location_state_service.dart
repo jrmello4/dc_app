@@ -2,7 +2,6 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:dc_app/services/location_service.dart';
 
 class LocationStateService extends ChangeNotifier {
   Position? _currentPosition;
@@ -53,6 +52,11 @@ class LocationStateService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Alias para clearAll para compatibilidade
+  void clearLocationState() {
+    clearAll();
+  }
+
   // Método para adicionar ponto ao polígono atual
   void addPointToPolygon(List<double> point) {
     if (_drawnPolygon == null) {
@@ -88,48 +92,4 @@ class LocationStateService extends ChangeNotifier {
     };
   }
 
-  // Método para obter localização atual
-  Future<String> getCurrentLocation() async {
-    setGettingLocation(true);
-    
-    try {
-      // Solicita permissão de localização
-      bool hasPermission = await LocationService.requestLocationPermission();
-      if (!hasPermission) {
-        return 'Permissão de localização negada.';
-      }
-
-      // Obtém a localização atual
-      final locationData = await LocationService.getCurrentLocationOnly();
-      
-      if (locationData != null) {
-        final position = Position(
-          latitude: locationData['latitude'],
-          longitude: locationData['longitude'],
-          timestamp: DateTime.now(),
-          accuracy: locationData['accuracy'] ?? 0.0,
-          altitude: 0.0,
-          heading: 0.0,
-          speed: 0.0,
-          speedAccuracy: 0.0,
-          altitudeAccuracy: 0.0,
-          headingAccuracy: 0.0,
-        );
-        
-        setCurrentPosition(position);
-        return 'Localização obtida com sucesso.';
-      } else {
-        return 'Não foi possível obter a localização atual.';
-      }
-    } catch (e) {
-      return 'Erro ao obter localização: $e';
-    } finally {
-      setGettingLocation(false);
-    }
-  }
-
-  // Método para limpar todo o estado
-  void clearLocationState() {
-    clearAll();
-  }
 }
