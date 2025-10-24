@@ -370,7 +370,7 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
                         isGettingLocation: locationState.isGettingLocation,
                         hasDrawnArea: locationState.hasDrawnArea,
                         currentPosition: locationState.currentPosition,
-                        drawnPolygon: locationState.drawnPolygon,
+                        drawnPolygon: locationState.drawnPolygon ?? [],
                       );
                     },
                   ),

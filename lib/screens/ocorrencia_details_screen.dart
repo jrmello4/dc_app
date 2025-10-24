@@ -58,7 +58,15 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
 
   Future<void> _loadDetails() async {
     setState(() {
-      _detailsFuture = OcorrenciaService.getOcorrenciaDetails(widget.ocorrenciaId);
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      
+      if (token == null) {
+        _detailsFuture = Future.error('Usuário não autenticado');
+        return;
+      }
+      
+      _detailsFuture = OcorrenciaService.getOcorrenciaDetails(token, widget.ocorrenciaId);
     });
   }
 
@@ -83,7 +91,14 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
     setState(() => _pickedImage = null);
 
     try {
-      await OcorrenciaService.addMessage(widget.ocorrenciaId, textToSend, image: imageToSend);
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      
+      if (token == null) {
+        throw Exception('Usuário não autenticado');
+      }
+      
+      await OcorrenciaService.addMessage(token, widget.ocorrenciaId, textToSend);
       _didStateChange = true;
       _showSuccess("Mensagem enviada com sucesso."); // Removido (simulação)
       _loadDetails(); // Recarrega para obter a nova mensagem (Comentário ajustado)
@@ -133,10 +148,18 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
     }
     setState(() => _isSubmittingRating = true);
     try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      
+      if (token == null) {
+        throw Exception('Usuário não autenticado');
+      }
+      
       await OcorrenciaService.addRating(
-        ocorrenciaId: widget.ocorrenciaId,
-        nota: _userRating,
-        comentario: _comentarioController.text.trim(),
+        token,
+        widget.ocorrenciaId,
+        _userRating,
+        _comentarioController.text.trim(),
       );
       _showSuccess('Avaliação enviada com sucesso!');
       _comentarioController.clear();
@@ -155,7 +178,14 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
     if (pickedFile == null) return;
     setState(() => _isUploadingImage = true);
     try {
-      await OcorrenciaService.addImage(widget.ocorrenciaId, File(pickedFile.path));
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      
+      if (token == null) {
+        throw Exception('Usuário não autenticado');
+      }
+      
+      await OcorrenciaService.addImage(token, widget.ocorrenciaId, File(pickedFile.path));
       _showSuccess('Imagem enviada com sucesso!');
       _didStateChange = true;
       _loadDetails();
@@ -356,8 +386,15 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
   }
 
   Widget _buildAvaliacaoWrapper() {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.token;
+    
+    if (token == null) {
+      return const Center(child: Text('Usuário não autenticado'));
+    }
+    
     return FutureBuilder<List<Avaliacao>>(
-      future: OcorrenciaService.getRatings(widget.ocorrenciaId),
+      future: OcorrenciaService.getRatings(token, widget.ocorrenciaId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));

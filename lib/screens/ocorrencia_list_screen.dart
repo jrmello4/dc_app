@@ -3,9 +3,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/models/ocorrencia.dart';
 import 'package:dc_app/screens/ocorrencia_details_screen.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
+import 'package:dc_app/services/auth_service.dart';
 
 enum StatusFilter { todas, abertas, encerradas }
 
@@ -61,7 +63,14 @@ class _OcorrenciaListScreenState extends State<OcorrenciaListScreen> {
 
   Future<void> _fetchOcorrenciasByStatus(String status, {bool forceRefresh = false}) async {
     try {
-      final List<Ocorrencia> ocorrencias = await OcorrenciaService.getOcorrenciasByStatus(status);
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      
+      if (token == null) {
+        throw Exception('Usuário não autenticado');
+      }
+      
+      final List<Ocorrencia> ocorrencias = await OcorrenciaService.getOcorrenciasByStatus(token, status);
       if (mounted) {
         ocorrencias.sort((a, b) => (b.dataInicio ?? DateTime(0)).compareTo(a.dataInicio ?? DateTime(0)));
         setState(() {

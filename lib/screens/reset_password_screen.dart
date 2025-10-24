@@ -47,8 +47,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         widget.uidb64,
         widget.token,
         _newPasswordController.text,
-        _confirmPasswordController.text, // Passa ambas as senhas conforme API original
-      ); //
+      );
       if (mounted) {
         setState(() {
           _isSuccess = true;

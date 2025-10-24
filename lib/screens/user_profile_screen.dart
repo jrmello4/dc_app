@@ -61,15 +61,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      await authService.updateProfile(
-        data: {
-          'first_name': _firstNameController.text.trim(),
-          'last_name': _lastNameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'telefone': _phoneController.text.trim(),
-        },
-        image: _pickedImage,
-      );
+      await authService.updateProfile({
+        'first_name': _firstNameController.text.trim(),
+        'last_name': _lastNameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'telefone': _phoneController.text.trim(),
+        'image': _pickedImage,
+      });
       _profileWasUpdated = true;
       _showSuccess('Perfil atualizado com sucesso!');
     } catch (e) {

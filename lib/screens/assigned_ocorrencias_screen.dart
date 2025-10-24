@@ -3,9 +3,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/models/ocorrencia.dart';
 import 'package:dc_app/screens/ocorrencia_details_screen.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
+import 'package:dc_app/services/auth_service.dart';
 
 enum StatusFilter { todas, abertas, encerradas }
 

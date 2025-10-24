@@ -43,12 +43,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Chama o AuthService para fazer o registo real
       final authService = Provider.of<AuthService>(context, listen: false);
       await authService.register(
-        firstName: _firstNameController.text.trim(),
-        lastName: _lastNameController.text.trim(),
-        email: _emailController.text.trim(),
-        phone: _phoneController.text.trim(), // Telefone incluído
-        password: _passwordController.text.trim(),
-      ); //
+        _emailController.text.trim(), // username
+        _emailController.text.trim(), // email
+        _passwordController.text.trim(), // password
+      );
       if (mounted) {
         // Exibe mensagem de sucesso e volta para a tela de login
         ScaffoldMessenger.of(context).showSnackBar(
