@@ -370,4 +370,82 @@ class OcorrenciaService {
       throw OcorrenciaException('Erro ao enviar avaliação: $e');
     }
   }
+
+  // --- Métodos Faltantes ---
+
+  static Future<void> addMessage(String token, int ocorrenciaId, String mensagem) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/ocorrencia/$ocorrenciaId/mensagem/');
+    
+    final headers = {
+      'Authorization': 'Token $token',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({'mensagem': mensagem}),
+      );
+
+      if (response.statusCode != 201) {
+        _logger.e('Falha ao adicionar mensagem: ${response.statusCode}');
+        throw OcorrenciaException('Falha ao enviar mensagem.', statusCode: response.statusCode);
+      }
+    } catch (e) {
+      _logger.e('Erro ao adicionar mensagem', error: e);
+      throw OcorrenciaException('Erro ao enviar mensagem: $e');
+    }
+  }
+
+  static Future<void> addRating(String token, int ocorrenciaId, int nota, String comentario) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/ocorrencia/$ocorrenciaId/avaliacao/');
+    
+    final headers = {
+      'Authorization': 'Token $token',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({'nota': nota, 'comentario': comentario}),
+      );
+
+      if (response.statusCode != 201) {
+        _logger.e('Falha ao adicionar avaliação: ${response.statusCode}');
+        throw OcorrenciaException('Falha ao enviar avaliação.', statusCode: response.statusCode);
+      }
+    } catch (e) {
+      _logger.e('Erro ao adicionar avaliação', error: e);
+      throw OcorrenciaException('Erro ao enviar avaliação: $e');
+    }
+  }
+
+  static Future<void> addImage(String token, int ocorrenciaId, File imageFile) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/ocorrencia/$ocorrenciaId/imagem/');
+    
+    final headers = {
+      'Authorization': 'Token $token',
+    };
+
+    try {
+      final request = http.MultipartRequest('POST', url);
+      request.headers.addAll(headers);
+      request.files.add(await http.MultipartFile.fromPath('imagem', imageFile.path));
+
+      final response = await request.send();
+      
+      if (response.statusCode != 201) {
+        _logger.e('Falha ao adicionar imagem: ${response.statusCode}');
+        throw OcorrenciaException('Falha ao enviar imagem.', statusCode: response.statusCode);
+      }
+    } catch (e) {
+      _logger.e('Erro ao adicionar imagem', error: e);
+      throw OcorrenciaException('Erro ao enviar imagem: $e');
+    }
+  }
 }

@@ -1,7 +1,8 @@
 // lib/screens/map_drawing_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:dc_app/services/location_service.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart'; // 1. Importar Provider
@@ -15,9 +16,8 @@ class MapDrawingScreen extends StatefulWidget {
 }
 
 class _MapDrawingScreenState extends State<MapDrawingScreen> {
-  GoogleMapController? _mapController;
   List<LatLng> _polygonPoints = [];
-  Set<Polygon> _polygons = {};
+  List<LatLng> _currentPolygon = [];
   LatLng _initialCameraPosition =
   const LatLng(-15.7942, -47.8825); // Posição inicial (Brasília)
   bool _isLoading = true;
@@ -40,9 +40,7 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
               LatLng(locationData['latitude'], locationData['longitude']);
           _isLoading = false;
         });
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(_initialCameraPosition, 16.0),
-        );
+        // O flutter_map não precisa de animateCamera
         _logger.i('Mapa centralizado em: $_initialCameraPosition');
       } else {
         _logger.w('Não foi possível obter localização. Usando posição padrão.');
@@ -54,10 +52,7 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
     }
   }
 
-  void _onMapCreated(GoogleMapController controller) {
-    _mapController = controller;
-    _logger.i('GoogleMapController criado.');
-  }
+  // flutter_map não precisa de onMapCreated
 
   void _onTap(LatLng point) {
     setState(() {
@@ -68,24 +63,15 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
   }
 
   void _updatePolygons() {
-    _polygons.clear();
-    if (_polygonPoints.isNotEmpty) {
-      _polygons.add(
-        Polygon(
-          polygonId: const PolygonId('drawn_polygon'),
-          points: _polygonPoints,
-          strokeWidth: 2,
-          strokeColor: Colors.red,
-          fillColor: Colors.red.withOpacity(0.3),
-        ),
-      );
-    }
+    setState(() {
+      _currentPolygon = List.from(_polygonPoints);
+    });
   }
 
   void _clearPolygon() {
     setState(() {
       _polygonPoints = [];
-      _polygons.clear();
+      _currentPolygon = [];
     });
     _logger.i('Polígono limpo.');
   }
@@ -94,7 +80,7 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
     if (_polygonPoints.isNotEmpty) {
       setState(() {
         _polygonPoints.removeLast();
-        _updatePolygons();
+        _currentPolygon = List.from(_polygonPoints);
       });
       _logger.i('Último ponto removido.');
     }
@@ -120,17 +106,29 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : GoogleMap(
-        onMapCreated: _onMapCreated,
-        initialCameraPosition: CameraPosition(
-          target: _initialCameraPosition,
-          zoom: 14.0,
+          : FlutterMap(
+        options: MapOptions(
+          initialCenter: _initialCameraPosition,
+          initialZoom: 14.0,
+          onTap: (tapPosition, point) => _onTap(point),
         ),
-        onTap: _onTap,
-        polygons: _polygons,
-        myLocationEnabled: true,
-        myLocationButtonEnabled: true,
-        mapType: MapType.hybrid,
+        children: [
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.example.dc_app',
+          ),
+          if (_currentPolygon.isNotEmpty)
+            PolygonLayer(
+              polygons: [
+                Polygon(
+                  points: _currentPolygon,
+                  color: Colors.red.withOpacity(0.3),
+                  borderColor: Colors.red,
+                  borderStrokeWidth: 2.0,
+                ),
+              ],
+            ),
+        ],
       ),
       floatingActionButton: _polygonPoints.length < 3
           ? null

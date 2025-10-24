@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final authService = Provider.of<AuthService>(context, listen: false);
       await authService.login(_emailController.text.trim(), _passwordController.text.trim());
       // O Consumer no main.dart vai automaticamente navegar para HomeScreen
-    } on AuthException catch (e) {
+    } on AuthServiceException catch (e) {
       _showError(e.message);
     } catch (e) {
       _logger.e('Erro inesperado durante o login', error: e);

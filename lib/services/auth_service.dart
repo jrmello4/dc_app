@@ -25,6 +25,8 @@ class AuthService extends ChangeNotifier {
   String? _userName;
   String? _userEmail;
   List<String>? _userGroups;
+  String? _photoUrl;
+  bool _isTecnico = false;
 
   // --- Getters Públicos (Não-Estáticos) ---
   // A UI usará estes getters através do Provider
@@ -33,6 +35,8 @@ class AuthService extends ChangeNotifier {
   String? get userName => _userName;
   String? get userEmail => _userEmail;
   List<String>? get userGroups => _userGroups;
+  String? get photoUrl => _photoUrl;
+  bool get isTecnico => _isTecnico;
   bool get isAuthenticated => _token != null;
 
   // --- Métodos de Autenticação ---
@@ -45,6 +49,8 @@ class AuthService extends ChangeNotifier {
     _userGroups = (userData['groups'] as List<dynamic>?)
         ?.map((group) => group as String)
         .toList();
+    _photoUrl = userData['photo_url'];
+    _isTecnico = userData['is_tecnico'] ?? false;
 
     await _storage.write(key: 'auth_token', value: _token);
     await _storage.write(key: 'user_id', value: _userId.toString());
@@ -52,6 +58,8 @@ class AuthService extends ChangeNotifier {
     await _storage.write(key: 'user_email', value: _userEmail);
     await _storage.write(
         key: 'user_groups', value: jsonEncode(_userGroups ?? []));
+    await _storage.write(key: 'photo_url', value: _photoUrl);
+    await _storage.write(key: 'is_tecnico', value: _isTecnico.toString());
 
     _logger.i('Dados de autenticação salvos com segurança.');
     notifyListeners(); // Notifica a UI que o estado mudou
@@ -64,6 +72,8 @@ class AuthService extends ChangeNotifier {
       _userName = await _storage.read(key: 'user_name');
       _userEmail = await _storage.read(key: 'user_email');
       final userGroupsString = await _storage.read(key: 'user_groups');
+      _photoUrl = await _storage.read(key: 'photo_url');
+      final isTecnicoString = await _storage.read(key: 'is_tecnico');
 
       if (_token != null && userIdString != null) {
         _userId = int.tryParse(userIdString);
@@ -72,6 +82,7 @@ class AuthService extends ChangeNotifier {
               .map((group) => group as String)
               .toList();
         }
+        _isTecnico = isTecnicoString == 'true';
 
         // Validar token (ex: checar expiração)
         if (Jwt.isExpired(_token!)) {
@@ -271,6 +282,126 @@ class AuthService extends ChangeNotifier {
       _logger.e('Erro desconhecido ao confirmar redefinição', error: e);
       if (e is AuthServiceException) rethrow;
       throw AuthServiceException('Ocorreu um erro inesperado: $e');
+    }
+  }
+
+  // --- Métodos Adicionais Faltantes ---
+
+  Future<Map<String, dynamic>> getUserProfile() async {
+    if (_token == null) {
+      throw AuthServiceException('Usuário não autenticado');
+    }
+
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/user/');
+    final headers = {
+      'Authorization': 'Token $_token',
+      'Accept': 'application/json',
+    };
+
+    try {
+      final response = await http.get(url, headers: headers);
+      
+      if (response.statusCode == 200) {
+        final userData = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        return userData;
+      } else {
+        throw AuthServiceException('Falha ao obter perfil do usuário');
+      }
+    } catch (e) {
+      _logger.e('Erro ao obter perfil do usuário', error: e);
+      throw AuthServiceException('Erro ao obter perfil: $e');
+    }
+  }
+
+  Future<void> updateProfile(Map<String, dynamic> profileData) async {
+    if (_token == null) {
+      throw AuthServiceException('Usuário não autenticado');
+    }
+
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/user/');
+    final headers = {
+      'Authorization': 'Token $_token',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+
+    try {
+      final response = await http.patch(url, headers: headers, body: jsonEncode(profileData));
+      
+      if (response.statusCode == 200) {
+        final userData = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        // Atualiza os dados locais
+        _userName = userData['username'];
+        _userEmail = userData['email'];
+        _photoUrl = userData['photo_url'];
+        _isTecnico = userData['is_tecnico'] ?? false;
+        
+        // Salva no storage
+        await _storage.write(key: 'user_name', value: _userName);
+        await _storage.write(key: 'user_email', value: _userEmail);
+        await _storage.write(key: 'photo_url', value: _photoUrl);
+        await _storage.write(key: 'is_tecnico', value: _isTecnico.toString());
+        
+        notifyListeners();
+        _logger.i('Perfil atualizado com sucesso');
+      } else {
+        throw AuthServiceException('Falha ao atualizar perfil');
+      }
+    } catch (e) {
+      _logger.e('Erro ao atualizar perfil', error: e);
+      throw AuthServiceException('Erro ao atualizar perfil: $e');
+    }
+  }
+
+  Future<void> requestPasswordReset(String email) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/password-reset/');
+    
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      if (response.statusCode == 200) {
+        _logger.i('Solicitação de redefinição de senha enviada para: $email');
+      } else {
+        final responseData = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        String errorMsg = responseData['error'] ?? 'Falha ao solicitar redefinição de senha.';
+        throw AuthServiceException(errorMsg);
+      }
+    } catch (e) {
+      _logger.e('Erro ao solicitar redefinição de senha', error: e);
+      if (e is AuthServiceException) rethrow;
+      throw AuthServiceException('Erro ao solicitar redefinição: $e');
+    }
+  }
+
+  Future<void> confirmPasswordReset(String uidb64, String token, String newPassword) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/password-reset-confirm/');
+    
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'uidb64': uidb64,
+          'token': token,
+          'new_password': newPassword,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        _logger.i('Senha redefinida com sucesso para UID: $uidb64');
+      } else {
+        final responseData = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        String errorMsg = responseData['error'] ?? 'Token inválido ou expirado.';
+        throw AuthServiceException(errorMsg);
+      }
+    } catch (e) {
+      _logger.e('Erro ao confirmar redefinição de senha', error: e);
+      if (e is AuthServiceException) rethrow;
+      throw AuthServiceException('Erro ao confirmar redefinição: $e');
     }
   }
 }

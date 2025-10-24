@@ -9,7 +9,8 @@ class StatusOcorrenciaService {
   final Logger _logger = Logger(); // Adiciona um logger
 
   Future<String?> _getAuthToken() async {
-    return AuthService.staticToken;
+    // Este serviço precisa ser atualizado para receber token como parâmetro
+    throw UnimplementedError('StatusOcorrenciaService precisa ser atualizado para receber token como parâmetro');
   }
 
   /// Função para Reabrir ou Encerrar uma ocorrência.

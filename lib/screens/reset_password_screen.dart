@@ -43,7 +43,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     try {
       // Chama o AuthService para redefinir a senha na API real
       final authService = Provider.of<AuthService>(context, listen: false);
-      await authService.resetPassword(
+      await authService.confirmPasswordReset(
         widget.uidb64,
         widget.token,
         _newPasswordController.text,

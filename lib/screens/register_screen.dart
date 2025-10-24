@@ -59,7 +59,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
         Navigator.of(context).pop();
       }
-    } on AuthException catch (e) {
+    } on AuthServiceException catch (e) {
       // Exibe erro vindo do AuthService (ex: e-mail já existe)
       _showError(e.message);
     } catch (e) {
