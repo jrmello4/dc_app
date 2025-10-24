@@ -79,6 +79,19 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  // Método público para validar token quando receber 401
+  Future<bool> validateAndClearIfExpired() async {
+    if (_token == null) return false;
+    
+    final isValid = await _validateToken();
+    if (!isValid) {
+      _logger.w('Token expirado detectado, limpando dados de autenticação');
+      await clearAuthData();
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _saveAuthData(String token, int userId, String nomeUsuario, bool isTecnico, String? photoUrl) async {
     _token = token;
     _userId = userId;
@@ -108,16 +121,6 @@ class AuthService extends ChangeNotifier {
       final isTecnicoStr = await _storage.read(key: _isTecnicoKey);
       _isTecnico = isTecnicoStr == 'true';
       _photoUrl = await _storage.read(key: _userPhotoUrlKey);
-      
-      // Se há token, valida se ainda é válido
-      if (_token != null) {
-        final isValid = await _validateToken();
-        if (!isValid) {
-          _logger.w('Token expirado, limpando dados de autenticação');
-          await clearAuthData();
-          return;
-        }
-      }
       
       notifyListeners(); // Notifica os listeners sobre a mudança
     } catch (e) {

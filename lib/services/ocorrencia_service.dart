@@ -82,6 +82,11 @@ class OcorrenciaService {
     if (response.statusCode == 200) {
       final List<dynamic> body = json.decode(utf8.decode(response.bodyBytes));
       return body.map((item) => DropdownItem(id: item['id'], nome: item['nome'])).toList();
+    } else if (response.statusCode == 401) {
+      // Token expirado - valida e limpa se necessário
+      final authService = AuthService();
+      await authService.validateAndClearIfExpired();
+      throw OcorrenciaException('Sessão expirada. Faça login novamente.');
     } else {
       throw OcorrenciaException('Falha ao carregar itens: $url');
     }
@@ -101,6 +106,11 @@ class OcorrenciaService {
       } else {
         throw OcorrenciaException('Estrutura de resposta inesperada para setores.');
       }
+    } else if (response.statusCode == 401) {
+      // Token expirado - valida e limpa se necessário
+      final authService = AuthService();
+      await authService.validateAndClearIfExpired();
+      throw OcorrenciaException('Sessão expirada. Faça login novamente.');
     } else {
       throw OcorrenciaException('Falha ao carregar setores.');
     }
