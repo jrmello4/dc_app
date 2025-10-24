@@ -3,376 +3,275 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jwt_decode/jwt_decode.dart';
 import 'package:logger/logger.dart';
-import 'package:dc_app/config/api_config.dart'; // Import corrigido
-// import 'package:dc_app/services/notification_service.dart'; // COMENTADO - depende do Firebase
+import 'package:dc_app/config/api_config.dart';
+// Removido: import 'package:firebase_messaging/firebase_messaging.dart';
 
-class AuthException implements Exception {
+class AuthServiceException implements Exception {
   final String message;
-  AuthException(this.message);
-
-  @override
-  String toString() => message;
+  AuthServiceException(this.message);
 }
 
 class AuthService extends ChangeNotifier {
-  static const _storage = FlutterSecureStorage();
-  final _logger = Logger();
-  
-  // Instância singleton para métodos estáticos
-  static final AuthService _instance = AuthService._internal();
-  factory AuthService() => _instance;
-  AuthService._internal();
+  final Logger _logger = Logger();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
-  static const _tokenKey = 'authToken';
-  static const _userIdKey = 'authUserId';
-  static const _userNameKey = 'authNomeUsuario';
-  static const _isTecnicoKey = 'isTecnico';
-  static const _userPhotoUrlKey = 'userPhotoUrl';
-
+  // --- Estado de Autenticação ---
+  // Removidos 'static' e o padrão singleton
   String? _token;
   int? _userId;
-  String? _nomeUsuario;
-  bool _isTecnico = false;
-  String? _photoUrl;
+  String? _userName;
+  String? _userEmail;
+  List<String>? _userGroups;
 
-  // COMENTADO: Instância do NotificationService para enviar o token FCM
-  // final NotificationService _notificationService = NotificationService();
-
+  // --- Getters Públicos (Não-Estáticos) ---
+  // A UI usará estes getters através do Provider
   String? get token => _token;
   int? get userId => _userId;
-  String? get nomeUsuario => _nomeUsuario;
-  bool get isTecnico => _isTecnico;
-  String? get photoUrl => _photoUrl;
-  
+  String? get userName => _userName;
+  String? get userEmail => _userEmail;
+  List<String>? get userGroups => _userGroups;
   bool get isAuthenticated => _token != null;
 
-  // Métodos estáticos para compatibilidade com serviços
-  static String? get staticToken => _instance._token;
-  static int? get staticUserId => _instance._userId;
-  static String? get staticNomeUsuario => _instance._nomeUsuario;
-  static bool get staticIsTecnico => _instance._isTecnico;
-  static String? get staticPhotoUrl => _instance._photoUrl;
-  static bool get staticIsAuthenticated => _instance._token != null;
+  // --- Métodos de Autenticação ---
 
-  // Função auxiliar para construir URL completa da foto
-  String? _buildFullPhotoUrl(String? partialUrl) {
-    if (partialUrl == null || partialUrl.isEmpty) return null;
-    if (partialUrl.startsWith('http')) return partialUrl;
-    // Usa a baseMediaUrl que não tem /api no final
-    return ApiConfig.baseMediaUrl + partialUrl;
-  }
-
-  // Valida se o token ainda é válido fazendo uma requisição simples
-  Future<bool> _validateToken() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/auth/user/'),
-        headers: {'Authorization': 'Token $_token'},
-      );
-      return response.statusCode == 200;
-    } catch (e) {
-      _logger.e('Erro ao validar token', error: e);
-      return false;
-    }
-  }
-
-  // Método público para validar token quando receber 401
-  Future<bool> validateAndClearIfExpired() async {
-    if (_token == null) return false;
-    
-    final isValid = await _validateToken();
-    if (!isValid) {
-      _logger.w('Token expirado detectado, limpando dados de autenticação');
-      await clearAuthData();
-      return false;
-    }
-    return true;
-  }
-
-  Future<void> _saveAuthData(String token, int userId, String nomeUsuario, bool isTecnico, String? photoUrl) async {
+  Future<void> _saveAuthData(String token, Map<String, dynamic> userData) async {
     _token = token;
-    _userId = userId;
-    _nomeUsuario = nomeUsuario;
-    _isTecnico = isTecnico;
-    _photoUrl = _buildFullPhotoUrl(photoUrl); // Constrói a URL completa
+    _userId = userData['user_id'];
+    _userName = userData['username'];
+    _userEmail = userData['email'];
+    _userGroups = (userData['groups'] as List<dynamic>?)
+        ?.map((group) => group as String)
+        .toList();
 
-    await _storage.write(key: _tokenKey, value: _token);
-    await _storage.write(key: _userIdKey, value: _userId.toString());
-    await _storage.write(key: _userNameKey, value: _nomeUsuario);
-    await _storage.write(key: _isTecnicoKey, value: _isTecnico.toString());
-    if (_photoUrl != null) {
-      await _storage.write(key: _userPhotoUrlKey, value: _photoUrl);
-    } else {
-      await _storage.delete(key: _userPhotoUrlKey);
-    }
-    
-    notifyListeners(); // Notifica os listeners sobre a mudança
+    await _storage.write(key: 'auth_token', value: _token);
+    await _storage.write(key: 'user_id', value: _userId.toString());
+    await _storage.write(key: 'user_name', value: _userName);
+    await _storage.write(key: 'user_email', value: _userEmail);
+    await _storage.write(
+        key: 'user_groups', value: jsonEncode(_userGroups ?? []));
+
+    _logger.i('Dados de autenticação salvos com segurança.');
+    notifyListeners(); // Notifica a UI que o estado mudou
   }
 
   Future<void> loadAuthData() async {
     try {
-      _token = await _storage.read(key: _tokenKey);
-      final userIdStr = await _storage.read(key: _userIdKey);
-      _userId = userIdStr != null ? int.tryParse(userIdStr) : null;
-      _nomeUsuario = await _storage.read(key: _userNameKey);
-      final isTecnicoStr = await _storage.read(key: _isTecnicoKey);
-      _isTecnico = isTecnicoStr == 'true';
-      _photoUrl = await _storage.read(key: _userPhotoUrlKey);
-      
-      notifyListeners(); // Notifica os listeners sobre a mudança
+      _token = await _storage.read(key: 'auth_token');
+      final userIdString = await _storage.read(key: 'user_id');
+      _userName = await _storage.read(key: 'user_name');
+      _userEmail = await _storage.read(key: 'user_email');
+      final userGroupsString = await _storage.read(key: 'user_groups');
+
+      if (_token != null && userIdString != null) {
+        _userId = int.tryParse(userIdString);
+        if (userGroupsString != null) {
+          _userGroups = (jsonDecode(userGroupsString) as List<dynamic>)
+              .map((group) => group as String)
+              .toList();
+        }
+
+        // Validar token (ex: checar expiração)
+        if (Jwt.isExpired(_token!)) {
+          _logger.w('Token expirado. Limpando dados.');
+          await clearAuthData(); // O clearAuthData já chama notifyListeners
+          return;
+        }
+
+        _logger.i('Dados de autenticação carregados.');
+      } else {
+        _logger.i('Nenhum dado de autenticação encontrado.');
+        _token = null;
+      }
     } catch (e) {
-      _logger.e('Falha ao carregar dados de autenticação', error: e);
-      await clearAuthData(); // Limpa dados corrompidos
+      _logger.e('Erro ao carregar dados de autenticação', error: e);
+      await clearAuthData(); // Limpa em caso de erro
+      return;
     }
+    notifyListeners(); // Notifica que o carregamento terminou
   }
 
   Future<void> clearAuthData() async {
-    await _storage.deleteAll();
     _token = null;
     _userId = null;
-    _nomeUsuario = null;
-    _isTecnico = false;
-    _photoUrl = null;
-    
-    notifyListeners(); // Notifica os listeners sobre a mudança
+    _userName = null;
+    _userEmail = null;
+    _userGroups = null;
+
+    await _storage.deleteAll();
+    _logger.i('Dados de autenticação limpos.');
+    notifyListeners(); // Notifica a UI (logout)
   }
 
   Future<void> login(String username, String password) async {
-    // Lógica original da API (sem mock)
-    final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/login/'),
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: json.encode({'username': username, 'password': password}),
-    );
-    if (response.statusCode == 200) {
-      final responseData = json.decode(utf8.decode(response.bodyBytes));
-      await _saveAuthData(
-        responseData['token'],
-        responseData['usuario']['id'],
-        "${responseData['usuario']['first_name']} ${responseData['usuario']['last_name']}".trim(),
-        (responseData['usuario']['groups'] as List).any((g) => g == 'Tecnico'),
-        responseData['usuario']['foto_url'],
+    final url = Uri.parse('${ApiConfig.baseUrl}/api-token-auth/');
+    _logger.i('Tentando login para $username');
+
+    try {
+      // String? fcmToken = await FirebaseMessaging.instance.getToken();
+      // _logger.i('FCM Token: $fcmToken');
+
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+          // 'fcm_token': fcmToken,
+        }),
       );
 
-      // COMENTADO: Envia o token FCM após o login bem-sucedido
-      // try {
-      //   final fcmToken = await _notificationService.getFCMToken();
-      //   if (fcmToken != null) {
-      //     await _notificationService.sendTokenToServer(fcmToken);
-      //   } else {
-      //     _logger.w("Não foi possível obter o token FCM para enviar ao backend após login.");
-      //   }
-      // } catch (e) {
-      //   _logger.e("Falha ao obter ou enviar o token FCM após o login.", error: e);
-      // }
+      if (response.statusCode == 200) {
+        final responseData =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final token = responseData['token'] as String?;
+        final user = responseData['user'] as Map<String, dynamic>?;
 
-    } else {
-      // Tenta decodificar mensagem de erro da API
-      String errorMessage = 'Credenciais inválidas.';
-      try {
-        final errorData = json.decode(utf8.decode(response.bodyBytes));
-        if (errorData is Map && errorData.containsKey('detail')) {
-          errorMessage = errorData['detail'];
-        } else if (errorData is Map && errorData.isNotEmpty) {
-          errorMessage = errorData.values.first.toString();
+        if (token != null && user != null) {
+          await _saveAuthData(token, user);
+          _logger.i('Login bem-sucedido para $username');
+        } else {
+          _logger.e('Resposta de login inválida: token ou usuário nulo.');
+          throw AuthServiceException(
+              'Resposta inválida do servidor. Tente novamente.');
         }
-      } catch (e) {
-        _logger.w("Não foi possível decodificar a resposta de erro da API de login.");
+      } else if (response.statusCode == 400) {
+        _logger.w('Falha no login (400): Credenciais inválidas');
+        throw AuthServiceException('Usuário ou senha inválidos.');
+      } else {
+        _logger.e('Erro de servidor no login: ${response.statusCode}');
+        throw AuthServiceException(
+            'Erro no servidor (${response.statusCode}). Tente mais tarde.');
       }
-      throw AuthException(errorMessage);
-    }
-  }
-
-  Future<void> register({
-    required String firstName,
-    required String lastName,
-    required String email,
-    required String phone,
-    required String password,
-  }) async {
-    // Lógica original da API (sem mock)
-    final url = Uri.parse('${ApiConfig.baseUrl}/usuario/add/');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: json.encode({
-        'first_name': firstName,
-        'last_name': lastName,
-        'username': email, // Assumindo que username é o email
-        'email': email,
-        'telefone': phone, // Campo telefone adicionado
-        'password': password,
-      }),
-    );
-    if (response.statusCode >= 300) {
-      String errorMessage = 'Falha no cadastro.';
-      try {
-        final errorData = json.decode(utf8.decode(response.bodyBytes));
-        // Tenta extrair a primeira mensagem de erro mais específica
-        if (errorData is Map && errorData.isNotEmpty) {
-          var firstErrorValue = errorData.values.first;
-          if (firstErrorValue is List && firstErrorValue.isNotEmpty) {
-            errorMessage = firstErrorValue.first;
-          } else {
-            errorMessage = firstErrorValue.toString();
-          }
-        }
-      } catch (e) {
-        _logger.w("Não foi possível decodificar a resposta de erro da API de registro.");
-      }
-      throw AuthException('$errorMessage (código: ${response.statusCode})');
-    }
-  }
-
-  Future<bool> validateToken() async {
-    // Lógica original da API (sem mock)
-    if (_token == null) await loadAuthData();
-    if (_token == null) return false;
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/user/'), headers: {'Authorization': 'Token $_token'});
-      return response.statusCode == 200;
+    } on SocketException {
+      _logger.e('Erro de conexão no login (SocketException)');
+      throw AuthServiceException(
+          'Não foi possível conectar ao servidor. Verifique sua internet.');
     } catch (e) {
-      _logger.e("Erro ao validar token", error: e);
-      return false;
+      _logger.e('Erro desconhecido no login', error: e);
+      // Re-lança se já for uma AuthServiceException
+      if (e is AuthServiceException) rethrow;
+      // Trata outros erros
+      throw AuthServiceException('Ocorreu um erro inesperado: $e');
     }
   }
 
-  Future<Map<String, dynamic>> getUserProfile() async {
-    // Lógica original da API (sem mock)
-    if (_token == null) {
-      await loadAuthData(); // Tenta carregar se não estiver na memória
-      if (_token == null) throw AuthException('Usuário não autenticado.');
-    }
-    final url = Uri.parse('${ApiConfig.baseUrl}/usuario/visualizar/');
-    final response = await http.get(url, headers: {'Authorization': 'Token $_token'});
-    if (response.statusCode == 200) {
-      return json.decode(utf8.decode(response.bodyBytes));
-    } else {
-      _logger.e("Falha ao carregar perfil. Status: ${response.statusCode}");
-      // Se o token for inválido, limpa os dados locais
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        await clearAuthData();
-        throw AuthException('Sessão inválida ou expirada. Faça login novamente.');
-      }
-      throw Exception('Não foi possível carregar os dados do perfil.');
-    }
-  }
+  Future<void> register(String username, String email, String password) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/register/');
+    _logger.i('Tentando registrar novo usuário: $username');
 
-  Future<void> updateProfile({required Map<String, String> data, File? image}) async {
-    // Lógica original da API (sem mock)
-    if (_token == null) throw AuthException('Usuário não autenticado.');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'email': email,
+          'password': password,
+        }),
+      );
 
-    // Endpoint baseado no código original
-    final url = Uri.parse('${ApiConfig.baseUrl}/usuario/alterar/');
-    var request = http.MultipartRequest('PATCH', url); // Usando PATCH conforme original
-
-    request.headers['Authorization'] = 'Token $_token';
-
-    _logger.i("Preparando para atualizar perfil com dados: $data");
-    request.fields.addAll(data);
-
-    if (image != null) {
-      const fieldName = 'imagem'; // Campo de imagem baseado no original
-      _logger.i("-> Enviando arquivo de imagem no campo '$fieldName': ${image.path}");
-      request.files.add(await http.MultipartFile.fromPath(fieldName, image.path));
-    } else {
-      _logger.i("-> Nenhuma nova imagem de perfil para enviar.");
-    }
-
-    _logger.i("Enviando requisição PATCH para: $url");
-
-    final response = await request.send();
-    final responseBody = await response.stream.bytesToString();
-
-    if (response.statusCode == 200) {
-      _logger.i("Perfil atualizado com sucesso! Status: ${response.statusCode}");
-      // Recarrega os dados do usuário para atualizar nome/foto na memória
-      try {
-        final profileData = json.decode(responseBody);
-        await _saveAuthData(
-            _token!, // Token não muda
-            profileData['id'],
-            "${profileData['first_name']} ${profileData['last_name']}".trim(),
-            _isTecnico, // Permissão não muda aqui
-            profileData['foto_url']
-        );
-      } catch(e) {
-        _logger.e("Erro ao processar resposta de atualização de perfil.", error: e);
-        // Mesmo com erro no processamento, a API confirmou sucesso.
-      }
-    } else {
-      _logger.e('Falha ao atualizar perfil. Status: ${response.statusCode}', error: responseBody);
-      throw Exception('Falha ao atualizar o perfil.');
-    }
-  }
-
-  Future<void> requestPasswordReset(String email) async {
-    // Lógica original da API (sem mock)
-    final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/usuario/password/reset/'), // Endpoint do código original
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: json.encode({'email': email}),
-    );
-
-    // A API original pode retornar 200 ou 204 para sucesso
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      String errorMessage = 'Não foi possível processar sua solicitação.';
-      try {
-        final responseData = json.decode(response.body);
-        if (responseData is Map && responseData.containsKey('detail')) {
-          errorMessage = responseData['detail'];
-        } else if (responseData is Map && responseData.containsKey('email')) {
-          errorMessage = responseData['email'] is List ? responseData['email'].join(', ') : responseData['email'].toString();
-        } else if (response.body.isNotEmpty) {
-          errorMessage = response.body;
+      if (response.statusCode == 201) {
+        _logger.i('Registro bem-sucedido para $username');
+        // O backend deve retornar os dados do usuário e token aqui?
+        // Se sim, chamar _saveAuthData
+        // Se não, o usuário deve fazer login
+      } else if (response.statusCode == 400) {
+        final responseData =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        // Tenta extrair a mensagem de erro da API
+        String errorMessage = "Erro de validação.";
+        if (responseData.containsKey('username')) {
+          errorMessage = 'Usuário: ${responseData['username'][0]}';
+        } else if (responseData.containsKey('email')) {
+          errorMessage = 'Email: ${responseData['email'][0]}';
+        } else if (responseData.containsKey('password')) {
+          errorMessage = 'Senha: ${responseData['password'][0]}';
         }
-      } catch (e) {
-        // Mantém a mensagem padrão
+        _logger.w('Falha no registro (400): $errorMessage');
+        throw AuthServiceException(errorMessage);
+      } else {
+        _logger.e('Erro de servidor no registro: ${response.statusCode}');
+        throw AuthServiceException(
+            'Erro no servidor (${response.statusCode}). Tente mais tarde.');
       }
-      _logger.e("Falha ao solicitar reset de senha. Status: ${response.statusCode}");
-      throw Exception('Erro: $errorMessage (Cód: ${response.statusCode})');
+    } on SocketException {
+      _logger.e('Erro de conexão no registro');
+      throw AuthServiceException(
+          'Não foi possível conectar ao servidor. Verifique sua internet.');
+    } catch (e) {
+      _logger.e('Erro desconhecido no registro', error: e);
+      if (e is AuthServiceException) rethrow;
+      throw AuthServiceException('Ocorreu um erro inesperado: $e');
     }
   }
 
-  Future<void> resetPassword(String uidb64, String token, String newPassword1, String newPassword2) async {
-    // Lógica original da API (sem mock)
-    final apiUrl = Uri.parse('${ApiConfig.baseUrl}/usuario/reset/$uidb64/$token/'); // Endpoint do código original
-    final response = await http.post(
-      apiUrl,
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: json.encode({
-        'new_password1': newPassword1,
-        'new_password2': newPassword2,
-        'uidb64': uidb64, // Incluindo uidb64 e token no corpo também, como no original
-        'token': token,
-      }),
-    );
+  Future<void> resetPassword(String email) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/reset-password/');
+    _logger.i('Solicitando redefinição de senha para: $email');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
 
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      String errorMessage = 'Não foi possível redefinir a senha.';
-      try {
-        final responseBody = json.decode(response.body);
-        if (responseBody is Map) {
-          if (responseBody.containsKey('new_password2')) {
-            errorMessage = responseBody['new_password2'] is List ? responseBody['new_password2'].join('\n') : responseBody['new_password2'].toString();
-          } else if (responseBody.containsKey('detail')) {
-            errorMessage = responseBody['detail'];
-          } else if (responseBody.isNotEmpty) {
-            // Tenta pegar o primeiro erro da lista
-            var firstError = responseBody.entries.firstWhere((entry) => entry.value is List && (entry.value as List).isNotEmpty, orElse: () => const MapEntry("", ["Erro desconhecido."]));
-            errorMessage = (firstError.value as List).first;
-          }
-        } else if (responseBody is String && responseBody.isNotEmpty) {
-          errorMessage = responseBody;
-        }
-      } catch(e) {
-        // Mantém mensagem padrão
+      if (response.statusCode == 200) {
+        _logger.i('Solicitação de redefinição de senha enviada para $email');
+      } else if (response.statusCode == 404) {
+        _logger.w('Email não encontrado para redefinição: $email');
+        throw AuthServiceException('Nenhum usuário encontrado com este email.');
+      } else {
+        _logger.e(
+            'Erro do servidor ao redefinir senha: ${response.statusCode}');
+        throw AuthServiceException(
+            'Erro no servidor (${response.statusCode}). Tente mais tarde.');
       }
-      _logger.e("Falha ao redefinir senha. Status: ${response.statusCode}");
-      throw Exception('Erro: $errorMessage (Cód: ${response.statusCode})');
+    } on SocketException {
+      _logger.e('Erro de conexão ao redefinir senha');
+      throw AuthServiceException(
+          'Não foi possível conectar ao servidor. Verifique sua internet.');
+    } catch (e) {
+      _logger.e('Erro desconhecido ao redefinir senha', error: e);
+      if (e is AuthServiceException) rethrow;
+      throw AuthServiceException('Ocorreu um erro inesperado: $e');
+    }
+  }
+
+  Future<void> confirmResetPassword(
+      String token, String newPassword, String uidb64) async {
+    final url =
+    Uri.parse('${ApiConfig.baseUrl}/reset-password/confirm/$uidb64/$token/');
+    _logger.i('Confirmando redefinição de senha para UID: $uidb64');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'new_password': newPassword}),
+      );
+
+      if (response.statusCode == 200) {
+        _logger.i('Senha redefinida com sucesso para UID: $uidb64');
+      } else {
+        final responseData =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        String errorMsg =
+            responseData['error'] ?? 'Token inválido ou expirado.';
+        _logger.w('Falha ao confirmar redefinição: $errorMsg');
+        throw AuthServiceException(errorMsg);
+      }
+    } on SocketException {
+      _logger.e('Erro de conexão ao confirmar redefinição');
+      throw AuthServiceException(
+          'Não foi possível conectar ao servidor. Verifique sua internet.');
+    } catch (e) {
+      _logger.e('Erro desconhecido ao confirmar redefinição', error: e);
+      if (e is AuthServiceException) rethrow;
+      throw AuthServiceException('Ocorreu um erro inesperado: $e');
     }
   }
 }

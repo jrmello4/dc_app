@@ -94,7 +94,7 @@ class PrintService {
   }
 
   /// Gera PDF da ocorrência
-  static Future<Uint8List> generateOcorrenciaPDF(Ocorrencia ocorrencia) async {
+  static Future<Uint8List> generateOcorrenciaPDF(Ocorrencia ocorrencia, String? nomeUsuario) async {
     try {
       final pdf = pw.Document();
 
@@ -245,7 +245,7 @@ class PrintService {
                         style: const pw.TextStyle(fontSize: 10),
                       ),
                       pw.Text(
-                        'Usuário: ${AuthService.staticNomeUsuario ?? 'Não informado'}',
+                        'Usuário: ${nomeUsuario ?? 'Não informado'}',
                         style: const pw.TextStyle(fontSize: 10),
                       ),
                     ],
@@ -295,7 +295,7 @@ class PrintService {
       _logger.i('Iniciando geração de PDF para impressão');
 
       // Gera o PDF
-      final pdfBytes = await generateOcorrenciaPDF(ocorrencia);
+      final pdfBytes = await generateOcorrenciaPDF(ocorrencia, null);
 
       _logger.i('PDF gerado com sucesso, abrindo diálogo de impressão');
 
@@ -326,7 +326,7 @@ class PrintService {
       _logger.i('Iniciando geração de PDF para salvar');
 
       // Gera o PDF
-      final pdfBytes = await generateOcorrenciaPDF(ocorrencia);
+      final pdfBytes = await generateOcorrenciaPDF(ocorrencia, null);
 
       // Define o nome do arquivo
       final fileName = 'Ocorrência_${ocorrencia.id}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';

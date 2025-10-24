@@ -3,211 +3,253 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:logger/logger.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:provider/provider.dart';
-import 'package:dc_app/services/auth_service.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
-import 'package:dc_app/services/location_state_service.dart';
-import 'package:dc_app/widgets/autocomplete_field.dart';
-import 'package:dc_app/models/setor.dart';
 import 'package:dc_app/screens/map_drawing_screen.dart';
+import 'package:dc_app/services/location_state_service.dart';
+import 'package:dc_app/services/auth_service.dart'; // Importar AuthService
+import 'package:provider/provider.dart'; // Importar Provider
+import 'package:logger/logger.dart';
 
 class CreateOcorrenciaScreen extends StatefulWidget {
   const CreateOcorrenciaScreen({super.key});
 
   @override
-  State<CreateOcorrenciaScreen> createState() => _CreateOcorrenciaScreenState();
+  _CreateOcorrenciaScreenState createState() => _CreateOcorrenciaScreenState();
 }
 
 class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _assuntoController = TextEditingController();
-  final _descricaoController = TextEditingController();
   final _logger = Logger();
 
-  int? _selectedPrioridadeId;
-  int? _selectedSetorId;
-  int? _selectedTipoOcorrenciaId;
-  final List<File> _images = [];
-  bool _isSaving = false;
-  
-  // Variáveis para localização
-  String? _currentLocation;
-  bool _isGettingLocation = false;
-  final _areaController = TextEditingController();
+  // Controladores
+  final _assuntoController = TextEditingController();
+  final _descricaoController = TextEditingController();
   final _locationController = TextEditingController();
 
-  late Future<OcorrenciaCreationData> _creationDataFuture;
+  // Seletores
+  String? _selectedPrioridade;
+  String? _selectedTipo;
+  String? _selectedSetor;
+  List<File> _anexos = [];
+
+  // Estado de UI
+  bool _isSaving = false;
+  Future<OcorrenciaCreationData>? _creationDataFuture;
 
   @override
   void initState() {
     super.initState();
+    _logger.i('Iniciando CreateOcorrenciaScreen');
+    // Limpa estado de localização anterior ao iniciar a tela
+    Provider.of<LocationStateService>(context, listen: false)
+        .clearLocationState();
     _loadDropdownData();
-  }
-
-  void _loadDropdownData() {
-    _creationDataFuture = OcorrenciaService.getCreationData();
-    _creationDataFuture.then((data) {
-      if (mounted && data.setorUsuarioId != null) {
-        // Pré-seleciona o setor do usuário, se disponível
-        setState(() {
-          _selectedSetorId = data.setorUsuarioId;
-        });
-      }
-    }).catchError((error) {
-      _showError(error is AuthException ? error.message : 'Falha ao carregar dados para criação.');
-    });
-  }
-
-  // Método para capturar localização atual
-  Future<void> _getCurrentLocation() async {
-    print('🔍 Debug - Iniciando _getCurrentLocation');
-    setState(() => _isGettingLocation = true);
-    
-    try {
-      _logger.i('Solicitando permissão de localização...');
-      
-      // Solicita permissão de localização
-      bool hasPermission = await LocationService.requestLocationPermission();
-      if (!hasPermission) {
-        _showError('Permissão de localização negada. Não foi possível obter a localização atual.');
-        return;
-      }
-
-      _logger.i('Obtendo localização atual...');
-      
-      // Obtém a localização atual (método otimizado)
-      final locationData = await LocationService.getCurrentLocationOnly();
-      
-      if (locationData != null) {
-        print('🔍 Debug - Localização obtida: ${locationData['latitude']}, ${locationData['longitude']}');
-        final position = Position(
-          latitude: locationData['latitude'],
-          longitude: locationData['longitude'],
-          timestamp: DateTime.now(),
-          accuracy: locationData['accuracy'] ?? 0.0,
-          altitude: 0.0,
-          heading: 0.0,
-          speed: 0.0,
-          speedAccuracy: 0.0,
-          altitudeAccuracy: 0.0,
-          headingAccuracy: 0.0,
-        );
-        
-        // Salva no LocationStateService
-        final locationStateService = Provider.of<LocationStateService>(context, listen: false);
-        locationStateService.setCurrentPosition(position);
-        
-        print('🔍 Debug - Posição salva no LocationStateService');
-        _logger.i('Localização obtida para centralizar o mapa');
-        _showSuccess('Localização obtida para centralizar o mapa');
-      } else {
-        print('🔍 Debug - locationData é null');
-        _showError('Não foi possível obter a localização atual.');
-      }
-    } catch (e) {
-      _logger.e('Erro ao obter localização', error: e);
-      _showError('Erro ao obter localização: ${e.toString()}');
-    } finally {
-      if (mounted) {
-        setState(() => _isGettingLocation = false);
-      }
-    }
-  }
-
-  Future<void> _pickImages() async {
-    final pickedFiles = await ImagePicker().pickMultiImage(imageQuality: 70);
-
-    if (pickedFiles.isNotEmpty) {
-      setState(() {
-        _images.addAll(pickedFiles.map((file) => File(file.path)));
-      });
-    }
-  }
-
-  void _removeImage(int index) {
-    setState(() {
-      _images.removeAt(index);
-    });
-  }
-
-  Future<void> _submitForm() async {
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      _showError('Por favor, corrija os erros no formulário.');
-      return;
-    }
-    setState(() => _isSaving = true);
-
-    try {
-      final locationStateService = Provider.of<LocationStateService>(context, listen: false);
-      
-      // Debug: verificar se a localização foi capturada
-      print('🔍 Debug - currentPosition: ${locationStateService.currentPosition}');
-      print('🔍 Debug - hasDrawnArea: ${locationStateService.hasDrawnArea}');
-      print('🔍 Debug - drawnPolygon: ${locationStateService.drawnPolygon?.length ?? 0} pontos');
-      
-      await OcorrenciaService.createOcorrencia(
-        assunto: _assuntoController.text,
-        descricao: _descricaoController.text,
-        prioridadeId: _selectedPrioridadeId,
-        setorId: _selectedSetorId,
-        tipoOcorrenciaId: _selectedTipoOcorrenciaId,
-        imagens: _images,
-        latitude: locationStateService.currentPosition?.latitude,
-        longitude: locationStateService.currentPosition?.longitude,
-        poligono: locationStateService.hasDrawnArea ? locationStateService.drawnPolygon : null,
-      );
-      _showSuccess('Ocorrência registrada com sucesso!');
-      if (mounted) Navigator.of(context).pop(true); // Retorna true para a tela anterior saber que algo foi criado
-    } on OcorrenciaException catch (e) {
-      _showError(e.message);
-    } on AuthException catch (e) {
-      _showError(e.message);
-    } catch (e) {
-      _logger.e('Erro inesperado ao criar ocorrência', error: e);
-      _showError('Ocorreu um erro desconhecido. Tente novamente.');
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
-    }
-  }
-
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: Colors.redAccent,
-    ));
-  }
-
-  void _showSuccess(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: Colors.green,
-    ));
-  }
-
-  Future<void> _openMapDrawing() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const MapDrawingScreen(),
-      ),
-    );
-    // O LocationStateService já foi atualizado pelo MapDrawingScreen
-    // Não precisamos fazer nada aqui
   }
 
   @override
   void dispose() {
     _assuntoController.dispose();
     _descricaoController.dispose();
-    _areaController.dispose();
     _locationController.dispose();
+    // Limpa estado de localização ao sair da tela
+    Provider.of<LocationStateService>(context, listen: false)
+        .clearLocationState();
+    _logger.i('Disposing CreateOcorrenciaScreen');
     super.dispose();
+  }
+
+  void _loadDropdownData() {
+    _logger.i('Tentando carregar dados do dropdown...');
+
+    // Obter o AuthService do Provider
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.token;
+    final userId = authService.userId;
+
+    // Verificar se o usuário está autenticado
+    if (token == null || userId == null) {
+      _logger.w('Usuário não autenticado. Não é possível carregar dados.');
+      // Define o futuro como um erro para o FutureBuilder tratar
+      setState(() {
+        _creationDataFuture = Future.error(
+          OcorrenciaException('Sua sessão expirou. Faça login novamente.'),
+        );
+      });
+      _showErrorAndRedirectToLogin('Sua sessão expirou. Faça login novamente.');
+      return;
+    }
+
+    // Passa o token e userId para o serviço
+    setState(() {
+      _creationDataFuture = OcorrenciaService.getCreationData(token, userId);
+    });
+
+    _creationDataFuture!.then((data) {
+      _logger.i('Dados do dropdown carregados com sucesso.');
+    }).catchError((error) {
+      _logger.e('Erro ao carregar dados do dropdown', error: error);
+      // O FutureBuilder tratará a exibição do erro
+    });
+  }
+
+  Future<void> _getCurrentLocation() async {
+    _logger.i('Tentando obter localização atual...');
+    final locationState =
+    Provider.of<LocationStateService>(context, listen: false);
+
+    try {
+      final message = await locationState.getCurrentLocation();
+      if (!mounted) return;
+
+      if (locationState.currentPosition != null) {
+        _showSuccess(message);
+        _logger.i('Localização obtida: ${locationState.currentPosition}');
+      } else {
+        _showError(message);
+        _logger.w('Não foi possível obter localização: $message');
+      }
+    } catch (e) {
+      _logger.e('Exceção ao obter localização', error: e);
+      _showError('Erro ao obter localização: $e');
+    }
+  }
+
+  Future<void> _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      // Lê o estado de localização do serviço
+      final locationState =
+      Provider.of<LocationStateService>(context, listen: false);
+
+      // Lê o estado de autenticação do serviço
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      final userId = authService.userId;
+
+      // Validação de autenticação
+      if (token == null || userId == null) {
+        _showErrorAndRedirectToLogin('Sessão expirada. Faça login novamente.');
+        return;
+      }
+
+      // Validação de localização
+      if (locationState.currentPosition == null &&
+          !locationState.hasDrawnArea) {
+        _showError(
+            'Por favor, forneça sua localização atual ou desenhe uma área no mapa.');
+        return;
+      }
+
+      setState(() => _isSaving = true);
+      _logger.i('Iniciando submissão do formulário...');
+
+      try {
+        await OcorrenciaService.createOcorrencia(
+          token, // Passa o token
+          userId, // Passa o userId
+          assunto: _assuntoController.text,
+          prioridade: _selectedPrioridade!,
+          tipo: _selectedTipo!,
+          setor: _selectedSetor!,
+          descricao: _descricaoController.text,
+          latitude: locationState.currentPosition?.latitude,
+          longitude: locationState.currentPosition?.longitude,
+          poligono:
+          locationState.hasDrawnArea ? locationState.drawnPolygon : null,
+        );
+
+        // Simulação de upload de anexos (se houver)
+        // Em um app real, você pegaria o ID da ocorrência criada e faria o upload
+        if (_anexos.isNotEmpty) {
+          _logger.i('Iniciando upload de ${_anexos.length} anexos...');
+          // Supondo que a API de criação retorne o ID, ou que você tenha outro método
+          // Aqui estamos apenas simulando
+          // int ocorrenciaId = ...; // ID retornado pela API
+          // for (var file in _anexos) {
+          //   await OcorrenciaService.uploadFile(token, ocorrenciaId: ocorrenciaId, file: file);
+          // }
+          await Future.delayed(const Duration(seconds: 1)); // Simulação
+        }
+
+        _logger.i('Ocorrência registrada com sucesso.');
+        _showSuccess('Ocorrência registrada com sucesso!');
+        if (mounted) Navigator.of(context).pop(true);
+      } on OcorrenciaException catch (e) {
+        _logger.e('Falha ao registrar ocorrência (OcorrenciaException)',
+            error: e);
+        _showError('Erro ao registrar: ${e.message}');
+      } catch (e) {
+        _logger.e('Falha ao registrar ocorrência (Erro desconhecido)', error: e);
+        _showError('Ocorreu um erro inesperado: $e');
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
+        }
+      }
+    } else {
+      _logger.w('Formulário inválido. Verifique os campos.');
+      _showError('Por favor, preencha todos os campos obrigatórios.');
+    }
+  }
+
+  Future<void> _openMapDrawing() async {
+    _logger.i('Abrindo tela de desenho de mapa...');
+
+    // Apenas navega. O MapDrawingScreen irá atualizar o LocationStateService.
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const MapDrawingScreen(),
+      ),
+    );
+
+    // O Consumer<LocationStateService> no build()
+    // irá reconstruir o _buildLocationField automaticamente
+    // quando o serviço for atualizado pelo MapDrawingScreen.
+    _logger.i('Retornou da tela de desenho.');
+  }
+
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _anexos.add(File(pickedFile.path));
+      });
+      _logger.i('Imagem selecionada: ${pickedFile.path}');
+    } else {
+      _logger.i('Seleção de imagem cancelada.');
+    }
+  }
+
+  // --- Funções de UI ---
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showSuccess(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.green),
+      );
+    }
+  }
+
+  void _showErrorAndRedirectToLogin(String message) {
+    if (mounted) {
+      _showError(message);
+      // Redireciona para o login após mostrar a mensagem
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    }
   }
 
   @override
@@ -215,74 +257,103 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Registrar Nova Ocorrência')),
+      appBar: AppBar(
+        title: const Text('Registrar Ocorrência'),
+        backgroundColor: theme.primaryColor,
+      ),
       body: FutureBuilder<OcorrenciaCreationData>(
         future: _creationDataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
+            _logger.i('FutureBuilder: Carregando dados...');
             return const Center(child: CircularProgressIndicator());
           }
+
           if (snapshot.hasError) {
-            return Center(child: Text('Erro ao carregar dados: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: Text('Nenhum dado encontrado para criar a ocorrência.'));
+            _logger.e('FutureBuilder: Erro ao carregar', error: snapshot.error);
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Erro ao carregar dados: ${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _loadDropdownData,
+                      child: const Text('Tentar Novamente'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
-          final data = snapshot.data!;
+          if (!snapshot.hasData) {
+            _logger.w('FutureBuilder: Sem dados (snapshot.hasData é falso)');
+            return const Center(child: Text('Nenhum dado encontrado.'));
+          }
+
+          _logger.i('FutureBuilder: Dados carregados, construindo formulário.');
+          final creationData = snapshot.data!;
 
           return Form(
             key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-              children: [
-                _buildHeader(theme),
-                _buildTextField(
-                  controller: _assuntoController,
-                  labelText: 'Assunto da Ocorrência',
-                  prefixIcon: Icons.subject_rounded,
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Informe o assunto.' : null,
-                ),
-                _buildDropdown(
-                  label: 'Tipo de Ocorrência',
-                  items: data.tiposOcorrencia,
-                  selectedValue: _selectedTipoOcorrenciaId,
-                  onChanged: (value) => setState(() => _selectedTipoOcorrenciaId = value),
-                  prefixIcon: Icons.category_outlined,
-                  validator: (v) => v == null ? 'Selecione o tipo.' : null,
-                ),
-                _buildDropdown(
-                  label: 'Prioridade',
-                  items: data.prioridades,
-                  selectedValue: _selectedPrioridadeId,
-                  onChanged: (value) => setState(() => _selectedPrioridadeId = value),
-                  prefixIcon: Icons.notification_important_outlined,
-                  validator: (v) => v == null ? 'Selecione a prioridade.' : null,
-                ),
-                _buildSetorDropdown(
-                  label: 'Setor de Destino',
-                  setores: data.setores,
-                  selectedValue: _selectedSetorId,
-                  onChanged: (value) => setState(() => _selectedSetorId = value),
-                  prefixIcon: Icons.group_work_outlined,
-                  validator: (v) => v == null ? 'Selecione o setor.' : null,
-                ),
-                // Campo de localização
-                _buildLocationField(),
-                _buildTextField(
-                  controller: _descricaoController,
-                  labelText: 'Descreva o problema ou solicitação...',
-                  prefixIcon: Icons.description_outlined,
-                  maxLines: 6,
-                  minLines: 4,
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Informe a descrição.' : null,
-                ),
-                const SizedBox(height: 16),
-                _buildImagePicker(),
-                const SizedBox(height: 24),
-                _buildSubmitButton(),
-                const SizedBox(height: 44),
-              ],
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildSectionTitle('Informações Básicas', theme),
+                  _buildTextFormField(_assuntoController, 'Assunto'),
+                  _buildDropdown(
+                    'Prioridade',
+                    _selectedPrioridade,
+                    creationData.prioridades,
+                        (value) => setState(() => _selectedPrioridade = value),
+                  ),
+                  _buildDropdown(
+                    'Tipo de Ocorrência',
+                    _selectedTipo,
+                    creationData.tipos,
+                        (value) => setState(() => _selectedTipo = value),
+                  ),
+                  _buildDropdown(
+                    'Setor Responsável',
+                    _selectedSetor,
+                    creationData.setores,
+                        (value) => setState(() => _selectedSetor = value),
+                  ),
+                  _buildTextFormField(_descricaoController, 'Descrição',
+                      maxLines: 5),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Localização', theme),
+
+                  // O Consumer garante que este widget seja reconstruído
+                  // sempre que o LocationStateService notificar mudanças.
+                  Consumer<LocationStateService>(
+                    builder: (context, locationState, child) {
+                      _logger.i('Consumer<LocationStateService> reconstruído.');
+                      return _buildLocationField(
+                        isGettingLocation: locationState.isGettingLocation,
+                        hasDrawnArea: locationState.hasDrawnArea,
+                        currentPosition: locationState.currentPosition,
+                        drawnPolygon: locationState.drawnPolygon,
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Anexos (Opcional)', theme),
+                  _buildAttachmentField(),
+                  const SizedBox(height: 32),
+                  _buildSubmitButton(),
+                ],
+              ),
             ),
           );
         },
@@ -290,244 +361,225 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  // --- Widgets de Construção ---
+
+  Widget _buildSectionTitle(String title, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0, top: 12.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Text(
+        title,
+        style:
+        theme.textTheme.titleLarge?.copyWith(color: theme.primaryColor),
+      ),
+    );
+  }
+
+  Widget _buildTextFormField(TextEditingController controller, String label,
+      {int maxLines = 1}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          filled: true,
+          fillColor: Colors.grey[50],
+        ),
+        maxLines: maxLines,
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Por favor, preencha o campo $label.';
+          }
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _buildDropdown(String label, String? selectedValue,
+      List<String> items, ValueChanged<String?> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: DropdownButtonFormField<String>(
+        value: selectedValue,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          filled: true,
+          fillColor: Colors.grey[50],
+        ),
+        items: items.map((String value) {
+          return DropdownMenuItem<String>(
+            value: value,
+            child: Text(value),
+          );
+        }).toList(),
+        onChanged: onChanged,
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Por favor, selecione um(a) $label.';
+          }
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _buildLocationField({
+    required bool isGettingLocation,
+    required bool hasDrawnArea,
+    required Position? currentPosition,
+    required List<List<double>> drawnPolygon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8.0),
+        color: Colors.grey[50],
+      ),
       child: Column(
         children: [
-          Icon(Icons.add_alert_outlined, size: 48, color: Colors.grey.shade700),
-          const SizedBox(height: 10),
-          Text('Informe os Detalhes da Ocorrência', style: theme.textTheme.titleLarge),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: isGettingLocation ? null : _getCurrentLocation,
+                  icon: isGettingLocation
+                      ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                      : const Icon(Icons.my_location),
+                  label: Text(isGettingLocation ? 'Obtendo...' : 'Minha Localização'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _openMapDrawing,
+                  icon: const Icon(Icons.map),
+                  label: Text(hasDrawnArea ? 'Editar Área' : 'Desenhar Área'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                    hasDrawnArea ? Colors.green : Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Status da localização capturada
+          if (currentPosition != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Localização capturada: ${currentPosition.latitude.toStringAsFixed(6)}, ${currentPosition.longitude.toStringAsFixed(6)}',
+                    style: const TextStyle(color: Colors.black87),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // Status da área desenhada
+          if (hasDrawnArea) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Área desenhada com ${drawnPolygon.length} pontos',
+                    style: const TextStyle(color: Colors.black87),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildTextField({ required TextEditingController controller, required String labelText, required IconData prefixIcon, required FormFieldValidator<String> validator, int? maxLines = 1, int? minLines = 1, }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(labelText: labelText, prefixIcon: Icon(prefixIcon)),
-        maxLines: maxLines,
-        minLines: minLines,
-        validator: validator,
-      ),
-    );
-  }
-
-  Widget _buildDropdown({ required String label, required List<DropdownItem> items, required int? selectedValue, required ValueChanged<int?> onChanged, required IconData prefixIcon, required FormFieldValidator<int> validator, }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: DropdownButtonFormField<int>(
-        value: selectedValue,
-        decoration: InputDecoration(labelText: label, prefixIcon: Icon(prefixIcon)),
-        items: items.map((item) => DropdownMenuItem<int>(value: item.id, child: Text(item.nome, overflow: TextOverflow.ellipsis))).toList(),
-        onChanged: onChanged,
-        validator: validator,
-        isExpanded: true,
-      ),
-    );
-  }
-
-  Widget _buildSetorDropdown({ required String label, required List<Setor> setores, required int? selectedValue, required ValueChanged<int?> onChanged, required IconData prefixIcon, required FormFieldValidator<int> validator, }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: DropdownButtonFormField<int>(
-        value: selectedValue,
-        decoration: InputDecoration(labelText: label, prefixIcon: Icon(prefixIcon)),
-        items: setores.map((setor) => DropdownMenuItem<int>(
-          value: setor.id, 
-          child: Text(setor.nome, overflow: TextOverflow.ellipsis)
-        )).toList(),
-        onChanged: onChanged,
-        validator: validator,
-        isExpanded: true,
-      ),
-    );
-  }
-
-  Widget _buildImagePicker() {
+  Widget _buildAttachmentField() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_images.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Text('Anexos:', style: Theme.of(context).textTheme.titleSmall),
-          ),
-        if (_images.isNotEmpty)
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8),
-            itemCount: _images.length,
-            itemBuilder: (context, index) {
-              return Stack(
-                alignment: Alignment.topRight,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12.0),
-                    child: Image.file(_images[index], height: 120, width: 120, fit: BoxFit.cover),
-                  ),
-                  Material(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(20),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () => _removeImage(index),
-                      child: const Padding(padding: EdgeInsets.all(4.0), child: Icon(Icons.close, color: Colors.white, size: 18)),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        const SizedBox(height: 8),
         OutlinedButton.icon(
+          onPressed: _pickImage,
           icon: const Icon(Icons.attach_file),
-          label: Text(_images.isEmpty ? 'Anexar Fotos' : 'Adicionar mais fotos'),
-          onPressed: _pickImages,
+          label: const Text('Adicionar Anexo'),
           style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 50),
-            foregroundColor: Theme.of(context).colorScheme.primary,
-            side: BorderSide(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+            minimumSize: const Size(double.infinity, 48),
           ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8.0,
+          runSpacing: 4.0,
+          children: _anexos.map((file) {
+            return Chip(
+              label: Text(
+                file.path.split('/').last,
+                overflow: TextOverflow.ellipsis,
+              ),
+              avatar: const Icon(Icons.image, size: 18),
+              onDeleted: () {
+                setState(() {
+                  _anexos.remove(file);
+                });
+                _logger.i('Anexo removido: ${file.path}');
+              },
+            );
+          }).toList(),
         ),
       ],
     );
   }
 
   Widget _buildSubmitButton() {
-    return _isSaving
-        ? const Center(child: CircularProgressIndicator())
-        : ElevatedButton.icon(
-      icon: const Icon(Icons.send_rounded),
-      label: const Text('REGISTRAR OCORRÊNCIA'),
-      onPressed: _submitForm,
-    );
-  }
-
-  // Widget para o campo de localização
-  Widget _buildLocationField() {
-    return Consumer<LocationStateService>(
-      builder: (context, locationStateService, child) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            
-            // Título da seção
-            Row(
-              children: [
-                Icon(Icons.map, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Localização e Área',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Botões de localização
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isGettingLocation ? null : _getCurrentLocation,
-                    icon: _isGettingLocation 
-                      ? const SizedBox(
-                          width: 16, 
-                          height: 16, 
-                          child: CircularProgressIndicator(strokeWidth: 2)
-                        )
-                      : const Icon(Icons.my_location),
-                    label: Text(_isGettingLocation ? 'Obtendo...' : 'Minha Localização'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _openMapDrawing,
-                    icon: const Icon(Icons.map),
-                    label: Text(locationStateService.hasDrawnArea ? 'Editar Área' : 'Desenhar Área'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: locationStateService.hasDrawnArea ? Colors.green : Colors.orange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            // Status da localização capturada
-            if (locationStateService.currentPosition != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  border: Border.all(color: Colors.blue.shade200),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.blue.shade600, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Localização capturada: ${locationStateService.currentPosition!.latitude.toStringAsFixed(6)}, ${locationStateService.currentPosition!.longitude.toStringAsFixed(6)}',
-                        style: TextStyle(
-                          color: Colors.blue.shade700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            
-            // Status da área desenhada
-            if (locationStateService.hasDrawnArea) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  border: Border.all(color: Colors.green.shade200),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green.shade600, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Área desenhada com ${locationStateService.drawnPolygon?.length ?? 0} pontos',
-                        style: TextStyle(
-                          color: Colors.green.shade700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        );
-      },
+    return ElevatedButton.icon(
+      onPressed: _isSaving ? null : _submitForm,
+      icon: _isSaving
+          ? const SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 3,
+          color: Colors.white,
+        ),
+      )
+          : const Icon(Icons.send),
+      label: Text(_isSaving ? 'Enviando...' : 'Registrar Ocorrência'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        textStyle: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }

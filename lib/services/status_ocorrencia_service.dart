@@ -8,21 +8,17 @@ import 'package:dc_app/services/auth_service.dart';
 class StatusOcorrenciaService {
   final Logger _logger = Logger(); // Adiciona um logger
 
-  Future<String?> _getAuthToken() async {
-    return AuthService.staticToken;
-  }
-
   /// Função para Reabrir ou Encerrar uma ocorrência.
+  /// [token]: Token de autenticação.
   /// [ocorrenciaId]: O PK da ocorrência.
   /// [acao]: Deve ser 'abrir' ou 'fechar'.
-  Future<String> atualizarStatusOcorrencia(int ocorrenciaId, String acao) async {
+  Future<String> atualizarStatusOcorrencia(String token, int ocorrenciaId, String acao) async {
     if (acao != 'abrir' && acao != 'fechar') {
       throw ArgumentError("Ação inválida. Use 'abrir' ou 'fechar'.");
     }
 
-    final String? token = await _getAuthToken();
-    if (token == null) {
-      throw Exception("Usuário não autenticado. Faça login novamente.");
+    if (token.isEmpty) {
+      throw Exception("Token de autenticação inválido.");
     }
 
     // Tenta primeiro o endpoint novo (/ocorrencia/)
