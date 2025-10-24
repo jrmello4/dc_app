@@ -115,17 +115,17 @@ class OcorrenciaService {
     request.headers['Authorization'] = 'Token $token';
     
     // Log dos dados que serão enviados
-    print('📤 Enviando dados para o servidor:');
-    print('📍 Latitude: $latitude');
-    print('📍 Longitude: $longitude');
-    print('🗺️ Polígono: ${poligono?.length ?? 0} pontos');
+    _logger.i('📤 Enviando dados para o servidor:');
+    _logger.i('📍 Latitude: $latitude');
+    _logger.i('📍 Longitude: $longitude');
+    _logger.i('🗺️ Polígono: ${poligono?.length ?? 0} pontos');
     if (poligono != null && poligono.isNotEmpty) {
-      print('🗺️ Primeiro ponto: ${poligono.first}');
+      _logger.i('🗺️ Primeiro ponto: ${poligono.first}');
     }
     if (mapData != null) {
-      print('🗺️ Dados completos do mapa: ${mapData.keys.join(', ')}');
-      print('🗺️ Centro do mapa: ${mapData['center']}');
-      print('🗺️ Setor no mapa: ${mapData['setor']}');
+      _logger.i('🗺️ Dados completos do mapa: ${mapData.keys.join(', ')}');
+      _logger.i('🗺️ Centro do mapa: ${mapData['center']}');
+      _logger.i('🗺️ Setor no mapa: ${mapData['setor']}');
     }
     
     // Prepara dados do polígono para o backend
@@ -153,12 +153,12 @@ class OcorrenciaService {
     }
 
     // Log dos dados formatados para o backend
-    print('📋 Dados formatados para o backend:');
+    _logger.i('📋 Dados formatados para o backend:');
     if (pontoData.isNotEmpty) {
-      print('📍 Ponto central: ${json.encode(pontoData)}');
+      _logger.i('📍 Ponto central: ${json.encode(pontoData)}');
     }
     if (poligonoData.isNotEmpty) {
-      print('🗺️ Polígono: ${json.encode(poligonoData)}');
+      _logger.i('🗺️ Polígono: ${json.encode(poligonoData)}');
     }
 
     request.fields.addAll({
@@ -180,15 +180,15 @@ class OcorrenciaService {
     }
 
     final response = await request.send();
-    print('📡 Resposta do servidor: ${response.statusCode}');
+    _logger.i('📡 Resposta do servidor: ${response.statusCode}');
     
     if (response.statusCode >= 300) {
       final responseBody = await response.stream.bytesToString();
-      print('❌ Erro do servidor: $responseBody');
+      _logger.e('❌ Erro do servidor: $responseBody');
       throw OcorrenciaException('Falha ao criar ocorrência. Status: ${response.statusCode}');
     }
     
-    print('✅ Ocorrência criada com sucesso no servidor!');
+    _logger.i('✅ Ocorrência criada com sucesso no servidor!');
   }
 
   static Future<List<Ocorrencia>> getOcorrenciasByStatus(String status) async {

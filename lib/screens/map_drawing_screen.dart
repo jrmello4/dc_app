@@ -3,6 +3,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:logger/logger.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
 import 'package:dc_app/services/setor_location_service.dart';
@@ -21,6 +22,7 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   bool _allowDrawing = true;
+  final _logger = Logger();
 
   @override
   void initState() {
@@ -50,22 +52,22 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
-      print('🔍 Iniciando obtenção de localização...');
+      _logger.d('🔍 Iniciando obtenção de localização...');
       
       // Solicita permissão de localização
       bool hasPermission = await LocationService.requestLocationPermission();
       if (!hasPermission) {
-        print('❌ Permissão de localização negada');
+        _logger.w('❌ Permissão de localização negada');
         throw Exception('Permissão de localização negada');
       }
-      print('✅ Permissão de localização concedida');
+      _logger.d('✅ Permissão de localização concedida');
 
       // Obtém localização atual
-      print('📍 Obtendo localização atual...');
+      _logger.d('📍 Obtendo localização atual...');
       final locationData = await LocationService.getCurrentLocationOnly();
       
       if (locationData != null) {
-        print('✅ Localização obtida: ${locationData['latitude']}, ${locationData['longitude']}');
+        _logger.d('✅ Localização obtida: ${locationData['latitude']}, ${locationData['longitude']}');
         setState(() {
           _currentPosition = Position(
             latitude: locationData['latitude'],
@@ -80,12 +82,12 @@ class _MapDrawingScreenState extends State<MapDrawingScreen> {
             headingAccuracy: 0.0,
           );
         });
-        print('✅ Posição atual definida no estado');
+        _logger.d('✅ Posição atual definida no estado');
       } else {
-        print('❌ Dados de localização nulos');
+        _logger.w('❌ Dados de localização nulos');
       }
     } catch (e) {
-      print('❌ Erro ao obter localização: $e');
+      _logger.e('❌ Erro ao obter localização', error: e);
       // Continua sem localização se houver erro
     }
   }

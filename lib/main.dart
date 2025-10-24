@@ -3,10 +3,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
-// import 'package:firebase_core/firebase_core.dart'; // COMENTADO
+import 'package:firebase_core/firebase_core.dart';
 import 'package:app_links/app_links.dart';
-// import 'package:dc_app/services/notification_service.dart'; // COMENTADO
-// import 'package:firebase_messaging/firebase_messaging.dart'; // COMENTADO
+import 'package:dc_app/services/notification_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:dc_app/screens/home_screen.dart';
 import 'package:dc_app/services/auth_service.dart';
 import 'package:dc_app/screens/login_screen.dart';
@@ -28,17 +28,17 @@ const ColorScheme globalColorScheme = ColorScheme(
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final _logger = Logger();
 
-// COMENTADO: Função do Firebase background handler
-// Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-//   await Firebase.initializeApp();
-//   _logger.d("Handling a background message: ${message.messageId}");
-// }
+// Função do Firebase background handler
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  _logger.d("Handling a background message: ${message.messageId}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // COMENTADO: Inicialização do Firebase
-  // await Firebase.initializeApp();
-  // FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  // Inicialização do Firebase
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   runApp(const MyApp());
 }
 
@@ -53,17 +53,17 @@ class _MyAppState extends State<MyApp> {
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
   late Future<bool> _isLoggedInFuture;
-  // COMENTADO: Notification Service
-  // final NotificationService _notificationService = NotificationService();
+  // Notification Service
+  final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
     super.initState();
     _isLoggedInFuture = _initializeApp();
     _initDeepLinks();
-    // COMENTADO: Inicialização de notificações
-    // _notificationService.initNotifications();
-    // _notificationService.checkForInitialMessage();
+    // Inicialização de notificações
+    _notificationService.initNotifications();
+    _notificationService.checkForInitialMessage();
   }
 
   Future<bool> _initializeApp() async {

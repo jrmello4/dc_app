@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:logger/logger.dart';
 import 'package:dc_app/services/setor_location_service.dart';
 import 'package:dc_app/models/setor.dart';
 
@@ -37,6 +38,7 @@ class _LeafletMapWidgetState extends State<LeafletMapWidget> {
   bool _isMapReady = false;
   List<List<double>> _currentPolygon = [];
   Setor? _selectedSetor;
+  final _logger = Logger();
 
   @override
   void initState() {
@@ -111,7 +113,7 @@ class _LeafletMapWidgetState extends State<LeafletMapWidget> {
           break;
       }
     } catch (e) {
-      print('Erro ao processar mensagem JavaScript: $e');
+      _logger.e('Erro ao processar mensagem JavaScript', error: e);
     }
   }
 

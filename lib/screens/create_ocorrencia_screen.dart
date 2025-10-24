@@ -66,7 +66,7 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
 
   // Método para capturar localização atual
   Future<void> _getCurrentLocation() async {
-    print('🔍 Debug - Iniciando _getCurrentLocation');
+    _logger.d('🔍 Debug - Iniciando _getCurrentLocation');
     setState(() => _isGettingLocation = true);
     
     try {
@@ -85,7 +85,7 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
       final locationData = await LocationService.getCurrentLocationOnly();
       
       if (locationData != null) {
-        print('🔍 Debug - Localização obtida: ${locationData['latitude']}, ${locationData['longitude']}');
+        _logger.d('🔍 Debug - Localização obtida: ${locationData['latitude']}, ${locationData['longitude']}');
         setState(() {
           _currentPosition = Position(
             latitude: locationData['latitude'],
@@ -101,11 +101,11 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
           );
         });
         
-        print('🔍 Debug - _currentPosition definido: $_currentPosition');
+        _logger.d('🔍 Debug - _currentPosition definido: $_currentPosition');
         _logger.i('Localização obtida para centralizar o mapa');
         _showSuccess('Localização obtida para centralizar o mapa');
       } else {
-        print('🔍 Debug - locationData é null');
+        _logger.d('🔍 Debug - locationData é null');
         _showError('Não foi possível obter a localização atual.');
       }
     } catch (e) {
@@ -141,9 +141,9 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
 
     try {
       // Debug: verificar se a localização foi capturada
-      print('🔍 Debug - _currentPosition: $_currentPosition');
-      print('🔍 Debug - _hasDrawnArea: $_hasDrawnArea');
-      print('🔍 Debug - _drawnPolygon: ${_drawnPolygon.length} pontos');
+      _logger.d('🔍 Debug - _currentPosition: $_currentPosition');
+      _logger.d('🔍 Debug - _hasDrawnArea: $_hasDrawnArea');
+      _logger.d('🔍 Debug - _drawnPolygon: ${_drawnPolygon.length} pontos');
       
       await OcorrenciaService.createOcorrencia(
         assunto: _assuntoController.text,

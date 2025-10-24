@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:logger/logger.dart';
 import 'package:dc_app/models/setor.dart';
 
 class RobustMapWidget extends StatefulWidget {
@@ -35,6 +36,7 @@ class _RobustMapWidgetState extends State<RobustMapWidget> {
   bool _hasError = false;
   String? _errorMessage;
   List<List<double>> _currentPolygon = [];
+  final _logger = Logger();
 
   @override
   void initState() {
@@ -132,7 +134,7 @@ class _RobustMapWidgetState extends State<RobustMapWidget> {
           break;
       }
     } catch (e) {
-      print('Erro ao processar mensagem JavaScript: $e');
+      _logger.e('Erro ao processar mensagem JavaScript', error: e);
     }
   }
 

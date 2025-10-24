@@ -7,7 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import 'package:dc_app/config/api_config.dart'; // Import corrigido
-// import 'package:dc_app/services/notification_service.dart'; // COMENTADO - depende do Firebase
+import 'package:dc_app/services/notification_service.dart';
 
 class AuthException implements Exception {
   final String message;
@@ -33,8 +33,8 @@ class AuthService {
   static bool _isTecnico = false;
   static String? _photoUrl;
 
-  // COMENTADO: Instância do NotificationService para enviar o token FCM
-  // static final NotificationService _notificationService = NotificationService();
+  // Instância do NotificationService para enviar o token FCM
+  static final NotificationService _notificationService = NotificationService();
 
   static String? get token => _token;
   static int? get userId => _userId;
@@ -109,17 +109,17 @@ class AuthService {
         responseData['usuario']['foto_url'],
       );
 
-      // COMENTADO: Envia o token FCM após o login bem-sucedido
-      // try {
-      //   final fcmToken = await _notificationService.getFCMToken();
-      //   if (fcmToken != null) {
-      //     await _notificationService.sendTokenToServer(fcmToken);
-      //   } else {
-      //     _logger.w("Não foi possível obter o token FCM para enviar ao backend após login.");
-      //   }
-      // } catch (e) {
-      //   _logger.e("Falha ao obter ou enviar o token FCM após o login.", error: e);
-      // }
+      // Envia o token FCM após o login bem-sucedido
+      try {
+        final fcmToken = await _notificationService.getFCMToken();
+        if (fcmToken != null) {
+          await _notificationService.sendTokenToServer(fcmToken);
+        } else {
+          _logger.w("Não foi possível obter o token FCM para enviar ao backend após login.");
+        }
+      } catch (e) {
+        _logger.e("Falha ao obter ou enviar o token FCM após o login.", error: e);
+      }
 
     } else {
       // Tenta decodificar mensagem de erro da API
