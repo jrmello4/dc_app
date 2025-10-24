@@ -44,84 +44,88 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Busca os dados do usuário atual do AuthService
-    final photoUrl = AuthService.photoUrl; //
-    final isTecnico = AuthService.isTecnico; //
+    return Consumer<AuthService>(
+      builder: (context, authService, child) {
+        // Busca os dados do usuário atual do AuthService
+        final photoUrl = authService.photoUrl;
+        final isTecnico = authService.isTecnico;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Defesa Civil'),
-        actions: [
-          // Menu de opções (Perfil, Sair)
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'profile') {
-                _navigateToProfile();
-              } else if (value == 'logout') {
-                _logout();
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'profile', child: Text('Meu Perfil')),
-              const PopupMenuItem(value: 'logout', child: Text('Sair')),
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Defesa Civil'),
+            actions: [
+              // Menu de opções (Perfil, Sair)
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'profile') {
+                    _navigateToProfile();
+                  } else if (value == 'logout') {
+                    _logout();
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'profile', child: Text('Meu Perfil')),
+                  const PopupMenuItem(value: 'logout', child: Text('Sair')),
+                ],
+                // Ícone do menu é a foto do perfil ou um ícone padrão
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: CircleAvatar(
+                    backgroundColor: Colors.white70, // Fundo claro para contraste
+                    backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
+                    // Exibe ícone de pessoa se não houver foto
+                    child: (photoUrl == null || photoUrl.isEmpty)
+                        ? Icon(Icons.person, color: Theme.of(context).colorScheme.primary)
+                        : null,
+                  ),
+                ),
+              ),
             ],
-            // Ícone do menu é a foto do perfil ou um ícone padrão
+          ),
+          body: Center(
             child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: CircleAvatar(
-                backgroundColor: Colors.white70, // Fundo claro para contraste
-                backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
-                // Exibe ícone de pessoa se não houver foto
-                child: (photoUrl == null || photoUrl.isEmpty)
-                    ? Icon(Icons.person, color: Theme.of(context).colorScheme.primary)
-                    : null,
+              padding: const EdgeInsets.all(24.0), // Espaçamento interno
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center, // Centraliza os botões
+                crossAxisAlignment: CrossAxisAlignment.stretch, // Estica os botões
+                children: [
+                  // Botão visível apenas para técnicos
+                  if (isTecnico) ...[ //
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.assignment_ind_outlined),
+                      label: const Text('Ocorrências Atribuídas'),
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const AssignedOcorrenciasScreen())), //
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 20), // Botão maior
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  // Botão para ver as ocorrências do usuário
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.article_outlined),
+                    label: const Text('Minhas Ocorrências'),
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const OcorrenciaListScreen())), //
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Botão para criar uma nova ocorrência
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add_alert_outlined),
+                    label: const Text('Registar Nova Ocorrência'),
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const CreateOcorrenciaScreen())), //
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0), // Espaçamento interno
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, // Centraliza os botões
-            crossAxisAlignment: CrossAxisAlignment.stretch, // Estica os botões
-            children: [
-              // Botão visível apenas para técnicos
-              if (isTecnico) ...[ //
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.assignment_ind_outlined),
-                  label: const Text('Ocorrências Atribuídas'),
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const AssignedOcorrenciasScreen())), //
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 20), // Botão maior
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              // Botão para ver as ocorrências do usuário
-              ElevatedButton.icon(
-                icon: const Icon(Icons.article_outlined),
-                label: const Text('Minhas Ocorrências'),
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const OcorrenciaListScreen())), //
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Botão para criar uma nova ocorrência
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add_alert_outlined),
-                label: const Text('Registar Nova Ocorrência'),
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const CreateOcorrenciaScreen())), //
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

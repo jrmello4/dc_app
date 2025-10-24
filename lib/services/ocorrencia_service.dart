@@ -41,7 +41,8 @@ class OcorrenciaService {
   
   // Helper para obter dados de autenticação
   static Map<String, String> _getAuthHeaders() {
-    final headers = _getAuthHeaders();
+    final token = AuthService.token;
+    if (token == null) throw AuthException('Sessão expirada.');
     return {'Authorization': 'Token $token', 'Accept': 'application/json'};
   }
   
@@ -247,7 +248,6 @@ class OcorrenciaService {
   static Future<Ocorrencia> getOcorrenciaDetails(int ocorrenciaId) async {
     final headers = _getAuthHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/chamado/$ocorrenciaId/visualizar/');
-    final headers = {'Authorization': 'Token $token'};
     final response = await http.get(url, headers: headers);
     if (response.statusCode == 200) {
       return Ocorrencia.fromJson(json.decode(utf8.decode(response.bodyBytes)));
