@@ -141,12 +141,12 @@ class _CreateOcorrenciaScreenState extends State<CreateOcorrenciaScreen> {
     setState(() => _isSaving = true);
 
     try {
+      final locationStateService = Provider.of<LocationStateService>(context, listen: false);
+      
       // Debug: verificar se a localização foi capturada
       print('🔍 Debug - currentPosition: ${locationStateService.currentPosition}');
       print('🔍 Debug - hasDrawnArea: ${locationStateService.hasDrawnArea}');
       print('🔍 Debug - drawnPolygon: ${locationStateService.drawnPolygon?.length ?? 0} pontos');
-      
-      final locationStateService = Provider.of<LocationStateService>(context, listen: false);
       
       await OcorrenciaService.createOcorrencia(
         assunto: _assuntoController.text,
