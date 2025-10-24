@@ -9,7 +9,7 @@ class StatusOcorrenciaService {
   final Logger _logger = Logger(); // Adiciona um logger
 
   Future<String?> _getAuthToken() async {
-    return AuthService.token;
+    return AuthService.staticToken;
   }
 
   /// Função para Reabrir ou Encerrar uma ocorrência.

@@ -50,12 +50,12 @@ class AuthService extends ChangeNotifier {
   bool get isAuthenticated => _token != null;
 
   // Métodos estáticos para compatibilidade com serviços
-  static String? get token => _instance._token;
-  static int? get userId => _instance._userId;
-  static String? get nomeUsuario => _instance._nomeUsuario;
-  static bool get isTecnico => _instance._isTecnico;
-  static String? get photoUrl => _instance._photoUrl;
-  static bool get isAuthenticated => _instance._token != null;
+  static String? get staticToken => _instance._token;
+  static int? get staticUserId => _instance._userId;
+  static String? get staticNomeUsuario => _instance._nomeUsuario;
+  static bool get staticIsTecnico => _instance._isTecnico;
+  static String? get staticPhotoUrl => _instance._photoUrl;
+  static bool get staticIsAuthenticated => _instance._token != null;
 
   // Função auxiliar para construir URL completa da foto
   String? _buildFullPhotoUrl(String? partialUrl) {
@@ -63,6 +63,20 @@ class AuthService extends ChangeNotifier {
     if (partialUrl.startsWith('http')) return partialUrl;
     // Usa a baseMediaUrl que não tem /api no final
     return ApiConfig.baseMediaUrl + partialUrl;
+  }
+
+  // Valida se o token ainda é válido fazendo uma requisição simples
+  Future<bool> _validateToken() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/auth/user/'),
+        headers: {'Authorization': 'Token $_token'},
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      _logger.e('Erro ao validar token', error: e);
+      return false;
+    }
   }
 
   Future<void> _saveAuthData(String token, int userId, String nomeUsuario, bool isTecnico, String? photoUrl) async {
@@ -94,6 +108,16 @@ class AuthService extends ChangeNotifier {
       final isTecnicoStr = await _storage.read(key: _isTecnicoKey);
       _isTecnico = isTecnicoStr == 'true';
       _photoUrl = await _storage.read(key: _userPhotoUrlKey);
+      
+      // Se há token, valida se ainda é válido
+      if (_token != null) {
+        final isValid = await _validateToken();
+        if (!isValid) {
+          _logger.w('Token expirado, limpando dados de autenticação');
+          await clearAuthData();
+          return;
+        }
+      }
       
       notifyListeners(); // Notifica os listeners sobre a mudança
     } catch (e) {
