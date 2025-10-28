@@ -17,24 +17,41 @@ class OcorrenciaMapWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Debug: verificar dados recebidos
+    print('🗺️ OcorrenciaMapWidget - Dados recebidos:');
+    print('   - ID: ${ocorrencia.id}');
+    print('   - Latitude: ${ocorrencia.latitude}');
+    print('   - Longitude: ${ocorrencia.longitude}');
+    print('   - Polígonos: ${ocorrencia.poligonos?.length ?? 'null'}');
+    
     // Determina o centro do mapa
     LatLng center;
     if (ocorrencia.latitude != null && ocorrencia.longitude != null) {
       center = LatLng(ocorrencia.latitude!, ocorrencia.longitude!);
+      print('   - Centro do mapa: ${center.latitude}, ${center.longitude}');
     } else {
       // Fallback para Araquari se não houver coordenadas
       center = const LatLng(-26.3726761, -48.7233351);
+      print('   - Centro padrão: ${center.latitude}, ${center.longitude}');
     }
 
     // Extrai polígonos dos dados
     List<List<LatLng>> polygons = [];
     if (ocorrencia.poligonos != null) {
-      for (var poligonoData in ocorrencia.poligonos!) {
+      print('   - Processando ${ocorrencia.poligonos!.length} polígonos...');
+      for (int i = 0; i < ocorrencia.poligonos!.length; i++) {
+        var poligonoData = ocorrencia.poligonos![i];
+        print('   - Polígono $i: ${poligonoData.keys.join(', ')}');
+        
         if (poligonoData['geom'] != null && 
             poligonoData['geom']['coordinates'] != null) {
           final coords = poligonoData['geom']['coordinates'] as List;
+          print('   - Coordenadas do polígono $i: ${coords.length} anéis');
+          
           if (coords.isNotEmpty && coords.first is List) {
             final polygonCoords = coords.first as List;
+            print('   - Pontos do polígono $i: ${polygonCoords.length} pontos');
+            
             List<LatLng> polygonPoints = [];
             for (var coord in polygonCoords) {
               if (coord is List && coord.length >= 2) {
@@ -43,11 +60,18 @@ class OcorrenciaMapWidget extends StatelessWidget {
             }
             if (polygonPoints.length >= 3) {
               polygons.add(polygonPoints);
+              print('   - Polígono $i adicionado com ${polygonPoints.length} pontos');
+            } else {
+              print('   - Polígono $i ignorado (${polygonPoints.length} pontos - mínimo 3)');
             }
           }
+        } else {
+          print('   - Polígono $i sem dados geométricos válidos');
         }
       }
     }
+    
+    print('   - Total de polígonos processados: ${polygons.length}');
 
     return Container(
       height: height,

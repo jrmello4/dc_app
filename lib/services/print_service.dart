@@ -54,7 +54,7 @@ class PrintService {
                 children: [
                   pw.Text(
                     'Imagem: ${imageUrl.split('/').last}',
-                    style: const pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
+                    style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
                   ),
                   pw.SizedBox(height: 5),
                   pw.Container(
@@ -245,7 +245,7 @@ class PrintService {
                         style: const pw.TextStyle(fontSize: 10),
                       ),
                       pw.Text(
-                        'Usuário: ${AuthService.nomeUsuario ?? 'Não informado'}',
+                        'Usuário: Não informado', // TODO: Receber nome do usuário como parâmetro
                         style: const pw.TextStyle(fontSize: 10),
                       ),
                     ],

@@ -81,8 +81,37 @@ class Ocorrencia {
     double? lat;
     double? lng;
     
+    // Debug: mostrar estrutura completa do JSON
+    print('🔍 Debug - JSON completo recebido (ID: ${json['id']}):');
+    print('   - Chaves disponíveis: ${json.keys.join(', ')}');
+    print('   - poligono presente: ${json.containsKey('poligono')}');
+    print('   - ponto presente: ${json.containsKey('ponto')}');
+    if (json['poligono'] != null) {
+      print('   - poligono tipo: ${json['poligono'].runtimeType}');
+      if (json['poligono'] is List) {
+        print('   - poligono length: ${(json['poligono'] as List).length}');
+        if ((json['poligono'] as List).isNotEmpty) {
+          print('   - primeiro polígono: ${(json['poligono'] as List).first.keys.join(', ')}');
+        }
+      }
+    }
+    
     if (json['poligono'] is List && (json['poligono'] as List).isNotEmpty) {
       poligonosData = (json['poligono'] as List).cast<Map<String, dynamic>>();
+      print('🔍 Debug - Estrutura dos polígonos:');
+      for (int i = 0; i < poligonosData.length; i++) {
+        print('   Polígono $i: ${poligonosData[i].keys.join(', ')}');
+        if (poligonosData[i]['geom'] != null) {
+          print('   - geom: ${poligonosData[i]['geom'].keys.join(', ')}');
+          if (poligonosData[i]['geom']['coordinates'] != null) {
+            final coords = poligonosData[i]['geom']['coordinates'] as List;
+            print('   - coordinates: ${coords.length} anéis');
+            if (coords.isNotEmpty && coords.first is List) {
+              print('   - primeiro anel: ${(coords.first as List).length} pontos');
+            }
+          }
+        }
+      }
     }
     
     if (json['ponto'] is List && (json['ponto'] as List).isNotEmpty) {
@@ -93,6 +122,29 @@ class Ocorrencia {
         if (coords != null && coords.length >= 2) {
           lng = coords[0].toDouble();
           lat = coords[1].toDouble();
+        }
+      }
+    } else if (poligonosData != null && poligonosData.isNotEmpty) {
+      // Se não há ponto, calcula o centro do primeiro polígono
+      final firstPolygon = poligonosData.first;
+      if (firstPolygon['geom'] != null && firstPolygon['geom']['coordinates'] != null) {
+        final coords = firstPolygon['geom']['coordinates'] as List;
+        if (coords.isNotEmpty && coords.first is List) {
+          final polygonCoords = coords.first as List;
+          if (polygonCoords.isNotEmpty) {
+            // Calcula o centro do polígono
+            double sumLat = 0;
+            double sumLng = 0;
+            for (var coord in polygonCoords) {
+              if (coord is List && coord.length >= 2) {
+                sumLng += coord[0].toDouble();
+                sumLat += coord[1].toDouble();
+              }
+            }
+            lng = sumLng / polygonCoords.length;
+            lat = sumLat / polygonCoords.length;
+            print('🔍 Debug - Centro calculado do polígono: lat=$lat, lng=$lng');
+          }
         }
       }
     }

@@ -2,6 +2,7 @@
 import 'dart:convert'; // Necessário para json.decode na versão original
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http; // Necessário para a lógica original
 import 'package:dc_app/config/api_config.dart'; // Import corrigido
 import 'package:dc_app/services/auth_service.dart'; // Import corrigido
@@ -32,7 +33,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       // Chama o AuthService para solicitar a redefinição real
-      await AuthService.requestPasswordReset(_emailController.text.trim()); //
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.requestPasswordReset(_emailController.text.trim()); //
       if (mounted) {
         setState(() {
           _isSuccess = true;

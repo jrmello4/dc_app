@@ -1,5 +1,6 @@
 // lib/screens/reset_password_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/services/auth_service.dart'; // Import corrigido
 import 'login_screen.dart';                         // Import corrigido
 
@@ -41,12 +42,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       // Chama o AuthService para redefinir a senha na API real
-      await AuthService.resetPassword(
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.confirmPasswordReset(
         widget.uidb64,
         widget.token,
         _newPasswordController.text,
-        _confirmPasswordController.text, // Passa ambas as senhas conforme API original
-      ); //
+      );
       if (mounted) {
         setState(() {
           _isSuccess = true;

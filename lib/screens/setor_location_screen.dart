@@ -2,9 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/services/ocorrencia_service.dart';
 import 'package:dc_app/services/location_service.dart';
 import 'package:dc_app/services/setor_location_service.dart';
+import 'package:dc_app/services/auth_service.dart';
 import 'package:dc_app/widgets/area_selection_widget.dart';
 import 'package:dc_app/widgets/map_triangulation_widget.dart';
 import 'package:dc_app/models/setor.dart';
@@ -38,13 +40,28 @@ class _SetorLocationScreenState extends State<SetorLocationScreen> {
 
     try {
       // Carrega dados de criação (setores)
-      final creationData = await OcorrenciaService.getCreationData();
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      final userId = authService.userId;
+      
+      if (token == null || userId == null) {
+        throw Exception('Usuário não autenticado');
+      }
+      
+      final creationData = await OcorrenciaService.getCreationData(token, userId);
       
       // Obtém localização atual
       final locationData = await LocationService.getCurrentLocationWithAddress();
       
       setState(() {
-        _setores = creationData.setores;
+        // Converte List<String> para List<Setor>
+        _setores = creationData.setores.map((nome) => Setor(
+          id: creationData.setores.indexOf(nome) + 1,
+          nome: nome,
+          latitude: 0.0,
+          longitude: 0.0,
+          raio: 0.0,
+        )).toList();
         if (locationData != null) {
           _currentPosition = Position(
             latitude: locationData['latitude'],
@@ -116,10 +133,22 @@ class _SetorLocationScreenState extends State<SetorLocationScreen> {
     }
 
     try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      final userId = authService.userId;
+      
+      if (token == null || userId == null) {
+        throw Exception('Usuário não autenticado');
+      }
+      
       await OcorrenciaService.createOcorrencia(
+        token,
+        userId,
         assunto: 'Ocorrência com área selecionada',
+        prioridade: 'Média', // Valor padrão
+        tipo: 'Geral', // Valor padrão
+        setor: _selectedSetor?.nome ?? 'Não especificado',
         descricao: 'Ocorrência criada com polígono personalizado',
-        setorId: _selectedSetor?.id,
         latitude: _currentPosition?.latitude,
         longitude: _currentPosition?.longitude,
         poligono: _selectedPolygon,

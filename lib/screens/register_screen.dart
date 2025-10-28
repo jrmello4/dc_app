@@ -2,6 +2,7 @@
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/config/api_config.dart'; // Import corrigido
 import 'package:dc_app/services/auth_service.dart'; // Import corrigido
 import 'package:url_launcher/url_launcher.dart'; // Import para abrir URL
@@ -40,13 +41,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       // Chama o AuthService para fazer o registo real
-      await AuthService.register(
-        firstName: _firstNameController.text.trim(),
-        lastName: _lastNameController.text.trim(),
-        email: _emailController.text.trim(),
-        phone: _phoneController.text.trim(), // Telefone incluído
-        password: _passwordController.text.trim(),
-      ); //
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.register(
+        _emailController.text.trim(), // username
+        _emailController.text.trim(), // email
+        _passwordController.text.trim(), // password
+      );
       if (mounted) {
         // Exibe mensagem de sucesso e volta para a tela de login
         ScaffoldMessenger.of(context).showSnackBar(
@@ -57,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
         Navigator.of(context).pop();
       }
-    } on AuthException catch (e) {
+    } on AuthServiceException catch (e) {
       // Exibe erro vindo do AuthService (ex: e-mail já existe)
       _showError(e.message);
     } catch (e) {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
 import 'package:dc_app/models/avaliacao.dart';
 import 'package:dc_app/models/mensagem.dart';
 import 'package:dc_app/models/ocorrencia.dart';
@@ -57,7 +58,15 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
 
   Future<void> _loadDetails() async {
     setState(() {
-      _detailsFuture = OcorrenciaService.getOcorrenciaDetails(widget.ocorrenciaId);
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      
+      if (token == null) {
+        _detailsFuture = Future.error('Usuário não autenticado');
+        return;
+      }
+      
+      _detailsFuture = OcorrenciaService.getOcorrenciaDetails(token, widget.ocorrenciaId);
     });
   }
 
@@ -82,7 +91,14 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
     setState(() => _pickedImage = null);
 
     try {
-      await OcorrenciaService.addMessage(widget.ocorrenciaId, textToSend, image: imageToSend);
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      
+      if (token == null) {
+        throw Exception('Usuário não autenticado');
+      }
+      
+      await OcorrenciaService.addMessage(token, widget.ocorrenciaId, textToSend);
       _didStateChange = true;
       _showSuccess("Mensagem enviada com sucesso."); // Removido (simulação)
       _loadDetails(); // Recarrega para obter a nova mensagem (Comentário ajustado)
@@ -132,10 +148,18 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
     }
     setState(() => _isSubmittingRating = true);
     try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      
+      if (token == null) {
+        throw Exception('Usuário não autenticado');
+      }
+      
       await OcorrenciaService.addRating(
-        ocorrenciaId: widget.ocorrenciaId,
-        nota: _userRating,
-        comentario: _comentarioController.text.trim(),
+        token,
+        widget.ocorrenciaId,
+        _userRating,
+        _comentarioController.text.trim(),
       );
       _showSuccess('Avaliação enviada com sucesso!');
       _comentarioController.clear();
@@ -154,7 +178,14 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
     if (pickedFile == null) return;
     setState(() => _isUploadingImage = true);
     try {
-      await OcorrenciaService.addImage(widget.ocorrenciaId, File(pickedFile.path));
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.token;
+      
+      if (token == null) {
+        throw Exception('Usuário não autenticado');
+      }
+      
+      await OcorrenciaService.addImage(token, widget.ocorrenciaId, File(pickedFile.path));
       _showSuccess('Imagem enviada com sucesso!');
       _didStateChange = true;
       _loadDetails();
@@ -189,8 +220,9 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
             final Ocorrencia ocorrencia = snapshot.data!;
             final List<Mensagem> messages = ocorrencia.mensagens;
             final bool isClosed = ocorrencia.status.toLowerCase() == 'encerrada';
-            final bool isOwner = (AuthService.userId == ocorrencia.solicitanteId);
-            final bool canManage = AuthService.isTecnico || isOwner;
+            final authService = Provider.of<AuthService>(context, listen: false);
+            final bool isOwner = (authService.userId == ocorrencia.solicitanteId);
+            final bool canManage = authService.isTecnico || isOwner;
 
             return Scaffold(
               appBar: _buildAppBar(context, ocorrencia, isClosed, canManage),
@@ -265,14 +297,25 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
             const Divider(height: 24, thickness: 1),
             Text(ocorrencia.descricao, style: theme.textTheme.bodyMedium),
             
-            // Mapa com área desenhada (se houver dados geográficos)
-            if (ocorrencia.poligonos != null && ocorrencia.poligonos!.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Divider(height: 24, thickness: 1),
-              Text('Área da Ocorrência', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              OcorrenciaMapWidget(ocorrencia: ocorrencia, height: 250),
-            ],
+                  // Debug: verificar dados geográficos
+                  const SizedBox(height: 16),
+                  const Divider(height: 24, thickness: 1),
+                  Text('Debug - Dados Geográficos', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('Polígonos: ${ocorrencia.poligonos?.length ?? 'null'}'),
+                  Text('Pontos: ${ocorrencia.pontos?.length ?? 'null'}'),
+                  Text('Latitude: ${ocorrencia.latitude ?? 'null'}'),
+                  Text('Longitude: ${ocorrencia.longitude ?? 'null'}'),
+                  Text('ID da Ocorrência: ${ocorrencia.id}'),
+                  
+                  // Mapa com área desenhada (se houver dados geográficos)
+                  if (ocorrencia.poligonos != null && ocorrencia.poligonos!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Divider(height: 24, thickness: 1),
+                    Text('Área da Ocorrência', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    OcorrenciaMapWidget(ocorrencia: ocorrencia, height: 250),
+                  ],
           ],
         ),
       ),
@@ -325,7 +368,8 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
   }
 
   Widget _buildMensagensSection(List<Mensagem> messages, ThemeData theme) {
-    final currentUserId = AuthService.userId;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUserId = authService.userId;
     messages.sort((a, b) => (a.dataCriacao ?? DateTime(0)).compareTo(b.dataCriacao ?? DateTime(0)));
 
     return Column(
@@ -342,8 +386,15 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
   }
 
   Widget _buildAvaliacaoWrapper() {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.token;
+    
+    if (token == null) {
+      return const Center(child: Text('Usuário não autenticado'));
+    }
+    
     return FutureBuilder<List<Avaliacao>>(
-      future: OcorrenciaService.getRatings(widget.ocorrenciaId),
+      future: OcorrenciaService.getRatings(token, widget.ocorrenciaId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));
@@ -355,14 +406,15 @@ class _OcorrenciaDetailsScreenState extends State<OcorrenciaDetailsScreen> {
   }
 
   Widget _buildAvaliacaoSection(List<Avaliacao> ratings, ThemeData theme) {
-    final bool hasUserRated = ratings.any((r) => r.usuarioId == AuthService.userId);
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final bool hasUserRated = ratings.any((r) => r.usuarioId == authService.userId);
 
     if (hasUserRated) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionTitle('Sua Avaliação', theme),
-          ...ratings.where((r) => r.usuarioId == AuthService.userId).map((r) => _buildAvaliacaoCard(r, theme)),
+          ...ratings.where((r) => r.usuarioId == authService.userId).map((r) => _buildAvaliacaoCard(r, theme)),
         ],
       );
     } else {

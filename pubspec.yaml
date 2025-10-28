@@ -63,6 +63,12 @@ dependencies:
   webview_flutter: ^4.4.2
   flutter_map: ^6.1.0
   latlong2: ^0.9.1
+  
+  # Para decodificar JWT tokens
+  jwt_decode: ^0.3.1
+  
+  # Para mapas do Google (se necessário)
+  google_maps_flutter: ^2.5.0
 
 dev_dependencies:
   flutter_test:
